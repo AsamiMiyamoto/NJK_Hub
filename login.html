@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Next Journey Keynote ログイン</title>
+  <style>
+    :root {
+      --primary-color: #0056b3;
+      --primary-hover: #004494;
+      --bg-color: #f0f4f8;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+      --border-color: #cccccc;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 32px;
+      margin: 60px auto 20px auto;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin: 0 0 4px 0;
+      color: var(--primary-color);
+      text-align: center;
+    }
+
+    .sub-title {
+      font-size: 13px;
+      color: #777;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .form-group { margin-bottom: 16px; }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .btn-primary {
+      width: 100%;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 4px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover { background-color: var(--primary-hover); }
+    .btn-primary:disabled { background-color: #99b8d6; cursor: not-allowed; }
+
+    .btn-dest {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background-color: #ffffff;
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 12px 14px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .btn-dest:hover { background-color: #f5f8fb; border-color: var(--primary-color); }
+    .btn-dest:disabled { color: #aaa; cursor: not-allowed; background-color: #f7f7f7; }
+
+    .error-message {
+      color: #dc3545;
+      font-size: 13px;
+      margin-top: -8px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .welcome-info {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .welcome-info .name {
+      font-size: 17px;
+      font-weight: bold;
+    }
+
+    .welcome-info .org {
+      font-size: 13px;
+      color: #777;
+      margin-top: 2px;
+    }
+
+    .logout-link {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #888;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Next Journey Keynote</h2>
+    <div class="sub-title">共通ログイン</div>
+
+    <!-- ログインフォーム -->
+    <div id="login-view">
+      <div class="error-message" id="login-error"></div>
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label>メールアドレス</label>
+          <input type="email" id="login-email" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>パスワード</label>
+          <input type="password" id="login-password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-primary" id="login-submit-btn">ログイン</button>
+      </form>
+    </div>
+
+    <!-- ログイン後：遷移先選択 -->
+    <div id="menu-view" style="display:none;">
+      <div class="welcome-info">
+        <div class="name" id="menu-name"></div>
+        <div class="org" id="menu-org"></div>
+      </div>
+      <button type="button" class="btn-dest" disabled>ポータルへ（準備中）</button>
+      <button type="button" class="btn-dest" onclick="goToSystem('strategy')">AP・タスク管理へ</button>
+      <span class="logout-link" onclick="backToLogin()">別のアカウントでログインし直す</span>
+    </div>
+  </div>
+
+<script>
+  const SYSTEM_URLS = {
+    strategy: 'https://script.google.com/macros/s/AKfycbwC2en3g6XedkK4rQcwFPv5WTe4NVxK1yNnY3S0cQODdwPqcE9INiXI_rSCxrU86s6R/exec'
+  };
+
+  let loggedInEmployeeId = null;
+
+  function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const errorBox = document.getElementById('login-error');
+    errorBox.style.display = 'none';
+
+    const btn = document.getElementById('login-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'ログイン中...';
+
+    google.script.run
+      .withSuccessHandler(res => {
+        btn.disabled = false;
+        btn.textContent = 'ログイン';
+        loggedInEmployeeId = res.empId;
+        document.getElementById('menu-name').textContent = res.name + ' さん';
+        document.getElementById('menu-org').textContent =
+          [res.departmentName, res.sectionName].filter(v => v && v !== '-' && v !== '(部署なし)').join(' / ') || '所属なし';
+        document.getElementById('login-view').style.display = 'none';
+        document.getElementById('menu-view').style.display = 'block';
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        btn.textContent = 'ログイン';
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      })
+      .verifyLogin(email, password);
+  }
+
+  function goToSystem(key) {
+    if (!loggedInEmployeeId) return;
+    const targetUrl = SYSTEM_URLS[key];
+    if (!targetUrl) return;
+
+    google.script.run
+      .withSuccessHandler(res => {
+        window.top.location.href = targetUrl + '?sso_token=' + encodeURIComponent(res.token);
+      })
+      .withFailureHandler(err => {
+        alert('遷移用トークンの発行に失敗しました: ' + err.message);
+      })
+      .generateSsoToken(loggedInEmployeeId);
+  }
+
+  function backToLogin() {
+    loggedInEmployeeId = null;
+    document.getElementById('login-password').value = '';
+    document.getElementById('menu-view').style.display = 'none';
+    document.getElementById('login-view').style.display = 'block';
+  }
+</script>
+
+</body>
+</html>

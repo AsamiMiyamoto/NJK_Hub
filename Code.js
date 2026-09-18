@@ -11,10 +11,31 @@ function getCommonSpreadsheet() {
   return ss;
 }
 
+// 管理画面へのアクセスを許可するGoogleアカウント一覧
+const ADMIN_ALLOWED_EMAILS_ = ['admin@j-shelter.com'];
+
 function doGet(e) {
-  return HtmlService.createTemplateFromFile('index')
+  const isAdminRequest = e && e.parameter && e.parameter.admin === 'true';
+
+  if (isAdminRequest) {
+    const activeEmail = Session.getActiveUser().getEmail();
+    if (ADMIN_ALLOWED_EMAILS_.indexOf(activeEmail) === -1) {
+      return HtmlService.createHtmlOutput(
+        '<div style="font-family: sans-serif; padding: 40px; text-align:center; color:#555;">' +
+        '<h2>アクセス権がありません</h2>' +
+        '<p>この画面は管理者用アカウントでログインしている場合のみ表示されます。</p>' +
+        '</div>'
+      ).setTitle('アクセス拒否');
+    }
+    return HtmlService.createTemplateFromFile('index')
+      .evaluate()
+      .setTitle('NJK社内システム 共通基盤（管理画面）')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  return HtmlService.createTemplateFromFile('login')
     .evaluate()
-    .setTitle('NJK社内システム 共通基盤')
+    .setTitle('Next Journey Keynote ログイン')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
