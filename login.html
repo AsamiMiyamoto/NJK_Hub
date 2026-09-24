@@ -145,6 +145,13 @@
       margin-top: 4px;
     }
 
+    .forgot-note {
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+      margin-top: 8px;
+    }
+
     .form-group input[readonly] { background-color: #f5f5f5; }
   </style>
 </head>
@@ -167,6 +174,7 @@
           <input type="password" id="login-password" required autocomplete="current-password">
         </div>
         <button type="submit" class="btn-primary" id="login-submit-btn">ログイン</button>
+        <div class="forgot-note">パスワードがわからない場合は、管理者にリセットを依頼してください</div>
       </form>
       <span class="logout-link" onclick="showChangeView(false)">パスワードを変更する</span>
     </div>
