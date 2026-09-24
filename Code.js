@@ -586,16 +586,26 @@ function formatDate_(dateStr) {
 /**
  * 外部システム（戦略AP等）連携用API
  * 共通基盤の最新マスタデータを一括返却する
- * ※ライブラリ経由で戦略APから呼ばれるため管理者チェックは行わない（パスワード関連の項目は含めない）
+ * ※ライブラリ経由で戦略APから呼ばれるため管理者チェックではなくAPIキーで保護する（パスワード関連の項目は含めない）
+ * @param {string} apiKey 連携用APIキー（スクリプトプロパティ API_KEY_STRATEGY_AP と照合）
  * @return {Object} 全マスタデータを含むオブジェクト
  */
-function exportCommonMasterData() {
+function exportCommonMasterData(apiKey) {
+  assertStrategyApiKey_(apiKey);
   return {
     employees: buildEmployeeListForDisplay_(),
     departments: getDepartments(),
     sections: getSections(),
     assignments: getAssignments()
   };
+}
+
+/**
+ * 戦略AP連携用APIキーの照合。未指定・不一致・プロパティ未設定はいずれも拒否する
+ */
+function assertStrategyApiKey_(apiKey) {
+  const expected = PropertiesService.getScriptProperties().getProperty('API_KEY_STRATEGY_AP');
+  if (!expected || !apiKey || apiKey !== expected) throw new Error('Unauthorized');
 }
 
 /**
