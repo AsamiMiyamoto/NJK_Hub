@@ -361,8 +361,8 @@ function getEmployeeRecords_() {
   const empData = empSheet.getDataRange().getValues();
   if (empData.length <= 1) return [];
 
-  const depts = getDepartments();
-  const secs = getSections();
+  const depts = getDepartments_();
+  const secs = getSections_();
   const assignSheet = ss.getSheetByName('所属履歴');
   const assignData = assignSheet ? assignSheet.getDataRange().getValues() : [];
   const deptMap = {}; depts.forEach(d => deptMap[d.id] = d.name);
@@ -417,7 +417,15 @@ function getEmployeeRecords_() {
 // ----------------------------------------------------
 // 事業部・部署・所属マスタ 処理
 // ----------------------------------------------------
+/**
+ * 管理画面用（管理者のみ）
+ */
 function getDepartments() {
+  assertAdmin_();
+  return getDepartments_();
+}
+
+function getDepartments_() {
   const sheet = getCommonSpreadsheet().getSheetByName('事業部マスタ');
   if (!sheet) return [];
   return sheet.getDataRange().getValues().slice(1).map(row => ({
@@ -471,7 +479,15 @@ function updateDepartment(id, name, sortOrder, active) {
   return { success: true, id: id };
 }
 
+/**
+ * 管理画面用（管理者のみ）
+ */
 function getSections() {
+  assertAdmin_();
+  return getSections_();
+}
+
+function getSections_() {
   const sheet = getCommonSpreadsheet().getSheetByName('部署マスタ');
   if (!sheet) return [];
   return sheet.getDataRange().getValues().slice(1).map(row => ({
@@ -531,7 +547,15 @@ function updateSection(id, name, departmentId, sortOrder, startDateStr, active) 
   return { success: true, id: id };
 }
 
+/**
+ * 管理画面用（管理者のみ）
+ */
 function getAssignments() {
+  assertAdmin_();
+  return getAssignments_();
+}
+
+function getAssignments_() {
   const sheet = getCommonSpreadsheet().getSheetByName('所属履歴');
   if (!sheet) return [];
   return sheet.getDataRange().getValues().slice(1).map(row => ({
@@ -594,9 +618,9 @@ function exportCommonMasterData(apiKey) {
   assertStrategyApiKey_(apiKey);
   return {
     employees: buildEmployeeListForDisplay_(),
-    departments: getDepartments(),
-    sections: getSections(),
-    assignments: getAssignments()
+    departments: getDepartments_(),
+    sections: getSections_(),
+    assignments: getAssignments_()
   };
 }
 
