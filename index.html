@@ -591,6 +591,7 @@
           <td>
             <button class="btn-secondary btn-sm" onclick="openEmployeeEditModal('${emp.empId}')">編集</button>
             <button class="btn-secondary btn-sm" onclick="openSsoModal('${emp.empId}', '${emp.name}')">SSOログイン</button>
+            <button class="btn-danger btn-sm" onclick="resetEmployeePassword('${emp.empId}', this)">PWリセット</button>
           </td>
         </tr>
       `;
@@ -1034,7 +1035,23 @@
         window.open(redirectUrl, '_blank');
       })
       .withFailureHandler(err => { alert('SSOトークン生成失敗: ' + err.message); btn.disabled = false; })
-      .generateSsoToken(selectedSsoEmpId);
+      .adminGenerateSsoToken(selectedSsoEmpId);
+  }
+
+  // PWリセット：初期パスワード（社員ID）に戻し、次回ログイン時に変更を求める
+  function resetEmployeePassword(empId, btn) {
+    const emp = cachedEmployees.find(e => e.empId === empId);
+    const label = emp ? empId + ' : ' + emp.name : empId;
+    if (!confirm(label + ' のパスワードを初期パスワード（社員ID）にリセットします。\n次回ログイン時にパスワードの変更が必要になります。よろしいですか？')) return;
+
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(() => {
+        btn.disabled = false;
+        alert(label + ' のパスワードを初期パスワード（社員ID）に戻しました。');
+      })
+      .withFailureHandler(err => { alert('PWリセット失敗: ' + err.message); btn.disabled = false; })
+      .adminResetPassword(empId);
   }
 </script>
 

@@ -14,12 +14,29 @@ function getCommonSpreadsheet() {
 // 管理画面へのアクセスを許可するGoogleアカウント一覧
 const ADMIN_ALLOWED_EMAILS_ = ['admin@j-shelter.com'];
 
+// 社員マスタの列番号（1始まり）
+const EMP_COL_PASSWORD_ = 8;     // H列：パスワード
+const EMP_COL_MUST_CHANGE_ = 9;  // I列：PW変更要
+
+// CacheServiceのキー接頭辞（SSOトークンとログインセッションの取り違え防止）
+const SSO_TOKEN_PREFIX_ = 'SSO_';
+const SESSION_PREFIX_ = 'SESSION_';
+const SSO_TOKEN_TTL_SEC_ = 300;
+const SESSION_TTL_SEC_ = 21600; // 6時間（CacheServiceの上限）
+
+function isAdmin_() {
+  return ADMIN_ALLOWED_EMAILS_.indexOf(Session.getActiveUser().getEmail()) !== -1;
+}
+
+function assertAdmin_() {
+  if (!isAdmin_()) throw new Error("管理者権限がありません。");
+}
+
 function doGet(e) {
   const isAdminRequest = e && e.parameter && e.parameter.admin === 'true';
 
   if (isAdminRequest) {
-    const activeEmail = Session.getActiveUser().getEmail();
-    if (ADMIN_ALLOWED_EMAILS_.indexOf(activeEmail) === -1) {
+    if (!isAdmin_()) {
       return HtmlService.createHtmlOutput(
         '<div style="font-family: sans-serif; padding: 40px; text-align:center; color:#555;">' +
         '<h2>アクセス権がありません</h2>' +
@@ -51,50 +68,173 @@ function computeHash_(text) {
   return signature.map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * パスワードをソルト付きでハッシュ化する
+ * 形式：v2$<ソルト>$<SHA-256(ソルト+PW)の16進>
+ */
+function hashPassword_(plain) {
+  const salt = Utilities.getUuid().replace(/-/g, '');
+  return 'v2$' + salt + '$' + computeHash_(salt + plain);
+}
+
+/**
+ * 保存済みハッシュとの照合（新形式 v2$…、旧形式：ソルトなしSHA-256の64桁16進 の両方に対応）
+ */
+function verifyPassword_(plain, stored) {
+  const s = String(stored || '');
+  if (s.indexOf('v2$') === 0) {
+    const parts = s.split('$');
+    if (parts.length !== 3) return false;
+    return computeHash_(parts[1] + plain) === parts[2];
+  }
+  if (/^[0-9a-f]{64}$/i.test(s)) return computeHash_(plain) === s.toLowerCase();
+  return false;
+}
+
+/**
+ * パスワードルールの検証（違反時は日本語メッセージで例外）
+ */
+function validatePasswordRule_(newPw, employeeId) {
+  if (typeof newPw !== 'string' || newPw.length < 8) throw new Error("パスワードは8文字以上で入力してください。");
+  if (newPw === employeeId) throw new Error("社員IDと同じパスワードは使用できません。");
+}
+
 // ----------------------------------------------------
 // ログイン・認証 処理
 // ----------------------------------------------------
 
-/**
- * ログイン認証処理
- */
-function verifyLogin(email, password) {
-  if (!email || !password) throw new Error("メールアドレスとパスワードを入力してください。");
+function isActiveEmployee_(emp) {
+  return !!emp && emp.isValid === '有効' && emp.status !== '退職';
+}
 
-  const empList = getEmployeeDataForWeb();
-  const emp = empList.find(e => e.email === email);
+/**
+ * メールアドレス＋パスワードの照合。成功時は社員レコード（内部用）を返す
+ */
+function authenticate_(email, password) {
+  const emp = getEmployeeRecords_().find(e => e.email === email);
 
   if (!emp) throw new Error("メールアドレスまたはパスワードが間違っています。");
   if (emp.isValid !== '有効') throw new Error("無効化されているアカウントです。");
   if (emp.status === '退職') throw new Error("退職済みのアカウントです。");
-  if (emp.password !== computeHash_(password)) throw new Error("メールアドレスまたはパスワードが間違っています。");
+  if (!verifyPassword_(password, emp.password)) throw new Error("メールアドレスまたはパスワードが間違っています。");
+  return emp;
+}
 
-  // 認証成功時、ポータル遷移用のSSOトークンも同時に発行する
-  const ssoResult = generateSsoToken(emp.empId);
-
+/**
+ * ログイン完了時の戻り値（ログインセッションを発行する）
+ */
+function buildLoginResult_(emp) {
   return {
     success: true,
     empId: emp.empId,
     name: emp.name,
     departmentName: emp.departmentName,
     sectionName: emp.sectionName,
-    ssoToken: ssoResult.token
+    sessionId: createSession_(emp.empId)
   };
 }
 
 /**
- * 共通認証SSOトークンの発行
+ * ログイン認証処理
+ * PW変更要（I列TRUE）の場合はセッションを発行せず mustChangePassword:true を返す
  */
-function generateSsoToken(employeeId) {
+function verifyLogin(email, password) {
+  if (!email || !password) throw new Error("メールアドレスとパスワードを入力してください。");
+
+  const emp = authenticate_(email, password);
+
+  if (emp.mustChangePassword) {
+    return {
+      success: true,
+      mustChangePassword: true,
+      empId: emp.empId,
+      name: emp.name,
+      departmentName: emp.departmentName,
+      sectionName: emp.sectionName
+    };
+  }
+  return buildLoginResult_(emp);
+}
+
+/**
+ * パスワード変更：現PW照合→ルール検証→新形式で保存→PW変更要をFALSE→ログイン完了
+ */
+function changePassword(email, currentPw, newPw) {
+  if (!email || !currentPw || !newPw) throw new Error("メールアドレス・現在のパスワード・新しいパスワードを入力してください。");
+
+  const emp = authenticate_(email, currentPw);
+  validatePasswordRule_(newPw, emp.empId);
+
+  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
+  const targetRow = findEmployeeRow_(sheet, emp.empId);
+  sheet.getRange(targetRow, EMP_COL_PASSWORD_, 1, 2).setValues([[hashPassword_(newPw), false]]);
+
+  return buildLoginResult_(emp);
+}
+
+/**
+ * 管理者によるPWリセット：初期PW（社員ID）に戻し、PW変更要をTRUEにする
+ */
+function adminResetPassword(employeeId) {
+  assertAdmin_();
   if (!employeeId) throw new Error("社員IDが指定されていません。");
 
-  const empList = getEmployeeDataForWeb();
-  const emp = empList.find(e => e.empId === employeeId);
-  if (!emp || emp.isValid !== '有効' || emp.status === '退職') {
-    throw new Error("アクセス権が無効化されています。");
-  }
+  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
+  if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
+  const targetRow = findEmployeeRow_(sheet, employeeId);
+  sheet.getRange(targetRow, EMP_COL_PASSWORD_, 1, 2).setValues([[hashPassword_(employeeId), true]]);
 
-  const token = 'SSO_' + Utilities.getUuid();
+  return { success: true, employeeId: employeeId };
+}
+
+// ----------------------------------------------------
+// ログインセッション（共通基盤内の再遷移用）
+// ----------------------------------------------------
+
+function createSession_(employeeId) {
+  const sessionId = SESSION_PREFIX_ + Utilities.getUuid();
+  const sessionData = { employeeId: employeeId, createdAt: new Date().getTime() };
+  CacheService.getScriptCache().put(sessionId, JSON.stringify(sessionData), SESSION_TTL_SEC_);
+  return sessionId;
+}
+
+/**
+ * ログインセッションから遷移用SSOトークンを都度発行する
+ * 社員の状態（有効・退職・PW変更要）を毎回確認し、NGならセッションも破棄する
+ */
+function issueSsoTokenForSession(sessionId) {
+  const expiredMsg = "セッションの有効期限が切れました。再度ログインしてください。";
+  if (!sessionId || String(sessionId).indexOf(SESSION_PREFIX_) !== 0) throw new Error(expiredMsg);
+
+  const cache = CacheService.getScriptCache();
+  const sessionStr = cache.get(sessionId);
+  if (!sessionStr) throw new Error(expiredMsg);
+
+  const session = JSON.parse(sessionStr);
+  const emp = getEmployeeRecords_().find(e => e.empId === session.employeeId);
+  if (!isActiveEmployee_(emp) || emp.mustChangePassword) {
+    cache.remove(sessionId);
+    throw new Error("アカウントの状態が変更されました。再度ログインしてください。");
+  }
+  return generateSsoToken_(emp);
+}
+
+function logoutSession(sessionId) {
+  if (sessionId && String(sessionId).indexOf(SESSION_PREFIX_) === 0) {
+    CacheService.getScriptCache().remove(sessionId);
+  }
+  return { success: true };
+}
+
+// ----------------------------------------------------
+// SSOトークン
+// ----------------------------------------------------
+
+/**
+ * 共通認証SSOトークンの発行（内部用。呼び出し側で社員の状態確認を済ませること）
+ */
+function generateSsoToken_(emp) {
+  const token = SSO_TOKEN_PREFIX_ + Utilities.getUuid();
   const cache = CacheService.getScriptCache();
 
   const tokenData = {
@@ -104,22 +244,34 @@ function generateSsoToken(employeeId) {
     createdAt: new Date().getTime()
   };
 
-  cache.put(token, JSON.stringify(tokenData), 300);
+  cache.put(token, JSON.stringify(tokenData), SSO_TOKEN_TTL_SEC_);
 
   return { success: true, token: token, employeeId: emp.empId };
 }
 
+/**
+ * 管理画面からのSSOログイン（管理者の代理ログインのため、PW変更要は無視する）
+ */
+function adminGenerateSsoToken(employeeId) {
+  assertAdmin_();
+  if (!employeeId) throw new Error("社員IDが指定されていません。");
+
+  const emp = getEmployeeRecords_().find(e => e.empId === employeeId);
+  if (!isActiveEmployee_(emp)) throw new Error("アクセス権が無効化されています。");
+  return generateSsoToken_(emp);
+}
+
 function verifySsoToken(token) {
   if (!token) return { isValid: false, error: "トークンが提示されていません。" };
+  if (String(token).indexOf(SSO_TOKEN_PREFIX_) !== 0) return { isValid: false, error: "トークンの期限が切れているか、無効です。" };
   const cache = CacheService.getScriptCache();
   const cachedDataStr = cache.get(token);
   if (!cachedDataStr) return { isValid: false, error: "トークンの期限が切れているか、無効です。" };
 
   const tokenData = JSON.parse(cachedDataStr);
-  const empList = getEmployeeDataForWeb();
-  const emp = empList.find(e => e.empId === tokenData.employeeId);
+  const emp = getEmployeeRecords_().find(e => e.empId === tokenData.employeeId);
 
-  if (!emp || emp.isValid !== '有効' || emp.status === '退職') {
+  if (!isActiveEmployee_(emp)) {
     return { isValid: false, error: "共通基盤上でアクセス権が無効化されています。" };
   }
   cache.remove(token);
@@ -155,10 +307,10 @@ function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId
   const newId = generateNewEmployeeId();
   let formattedDate = startDateStr ? Utilities.formatDate(new Date(startDateStr), Session.getScriptTimeZone(), 'yyyy/MM/dd') : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd');
 
-  // 初期パスワードは社員IDとする（8列目に追加）。保存時はハッシュ化する
+  // 初期パスワードは社員IDとする（H列）。保存時はハッシュ化し、I列（PW変更要）をTRUEにする
   const initialPassword = newId;
 
-  sheet.appendRow([newId, name, email, status || '在籍', formattedDate, '', true, computeHash_(initialPassword)]);
+  sheet.appendRow([newId, name, email, status || '在籍', formattedDate, '', true, hashPassword_(initialPassword), true]);
 
   if (departmentId) {
     registerAssignment({
@@ -169,7 +321,31 @@ function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId
   return newId;
 }
 
+/**
+ * 社員マスタの行番号（1始まり）を返す。見つからなければ例外
+ */
+function findEmployeeRow_(sheet, employeeId) {
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === employeeId) return i + 1;
+  }
+  throw new Error("指定された社員IDが見つかりません: " + employeeId);
+}
+
+/**
+ * 画面表示用の社員一覧（パスワード関連の項目は含めない）
+ */
 function getEmployeeDataForWeb() {
+  return getEmployeeRecords_().map(emp => {
+    const { password, mustChangePassword, ...publicFields } = emp;
+    return publicFields;
+  });
+}
+
+/**
+ * 認証用の社員一覧（内部用。パスワードハッシュ・PW変更要を含む）
+ */
+function getEmployeeRecords_() {
   const ss = getCommonSpreadsheet();
   const empSheet = ss.getSheetByName('社員マスタ');
   if (!empSheet) return [];
@@ -221,6 +397,7 @@ function getEmployeeDataForWeb() {
       startDate: formatDate_(row[4]), endDate: formatDate_(row[5]),
       isValid: row[6] === false ? '無効' : '有効',
       password: row[7] || '', // H列（8列目）ハッシュ値を取得
+      mustChangePassword: row[8] === true || String(row[8]).toUpperCase() === 'TRUE', // I列（空欄はFALSE扱い）
       departmentId: currentAssign.deptId, sectionId: currentAssign.secId,
       departmentName: currentAssign.deptName, sectionName: currentAssign.secName,
       concurrentAssignments: concurrentAssignMap[empId] || []
@@ -404,6 +581,30 @@ function exportCommonMasterData() {
     sections: getSections(),
     assignments: getAssignments()
   };
+}
+
+/**
+ * 【一回限り・手動実行】社員マスタにI列「PW変更要」を追加し、既存の全社員をTRUEにする
+ * エディタの実行メニューから選べるよう末尾に _ を付けていない。
+ * I1が既に「PW変更要」なら何もしないため、再実行・誤呼び出しでも既存データは変わらない。
+ */
+function migrateAddMustChangeColumn() {
+  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
+  if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
+
+  const header = sheet.getRange(1, EMP_COL_MUST_CHANGE_);
+  if (header.getValue() === 'PW変更要') {
+    Logger.log('I列「PW変更要」は追加済みのため、処理しませんでした。');
+    return { success: true, skipped: true };
+  }
+
+  header.setValue('PW変更要');
+  const rowCount = sheet.getLastRow() - 1;
+  if (rowCount > 0) {
+    sheet.getRange(2, EMP_COL_MUST_CHANGE_, rowCount, 1).setValues(Array.from({ length: rowCount }, () => [true]));
+  }
+  Logger.log('I列「PW変更要」を追加し、' + rowCount + '行をTRUEに設定しました。');
+  return { success: true, updatedRows: rowCount };
 }
 
 function testLogin() {
