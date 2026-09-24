@@ -300,6 +300,7 @@ function generateNewEmployeeId() {
 }
 
 function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId, sectionId) {
+  assertAdmin_();
   const ss = getCommonSpreadsheet();
   const sheet = ss.getSheetByName('社員マスタ');
   if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
@@ -333,9 +334,17 @@ function findEmployeeRow_(sheet, employeeId) {
 }
 
 /**
- * 画面表示用の社員一覧（パスワード関連の項目は含めない）
+ * 管理画面用の社員一覧（管理者のみ）
  */
 function getEmployeeDataForWeb() {
+  assertAdmin_();
+  return buildEmployeeListForDisplay_();
+}
+
+/**
+ * 表示・連携用の社員一覧（パスワード関連の項目は含めない）
+ */
+function buildEmployeeListForDisplay_() {
   return getEmployeeRecords_().map(emp => {
     const { password, mustChangePassword, ...publicFields } = emp;
     return publicFields;
@@ -432,6 +441,7 @@ function generateNewDepartmentId() {
 }
 
 function registerDepartment(name, sortOrder) {
+  assertAdmin_();
   const sheet = getCommonSpreadsheet().getSheetByName('事業部マスタ');
   const newId = generateNewDepartmentId();
   sheet.appendRow([newId, name, Number(sortOrder) || 10, true]);
@@ -442,6 +452,7 @@ function registerDepartment(name, sortOrder) {
  * 事業部マスタの編集（ID以外の項目：名称／表示順／有効フラグ）
  */
 function updateDepartment(id, name, sortOrder, active) {
+  assertAdmin_();
   if (!id) throw new Error("事業部IDが指定されていません。");
   const sheet = getCommonSpreadsheet().getSheetByName('事業部マスタ');
   if (!sheet) throw new Error("「事業部マスタ」シートが見つかりません。");
@@ -485,6 +496,7 @@ function generateNewSectionId() {
 }
 
 function registerSection(name, departmentId, sortOrder, startDateStr) {
+  assertAdmin_();
   const sheet = getCommonSpreadsheet().getSheetByName('部署マスタ');
   const newId = generateNewSectionId();
   let formattedDate = startDateStr ? Utilities.formatDate(new Date(startDateStr), Session.getScriptTimeZone(), 'yyyy/MM/dd') : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd');
@@ -496,6 +508,7 @@ function registerSection(name, departmentId, sortOrder, startDateStr) {
  * 部署マスタの編集（ID以外の項目：名称／所属事業部／表示順／利用開始日／有効フラグ）
  */
 function updateSection(id, name, departmentId, sortOrder, startDateStr, active) {
+  assertAdmin_();
   if (!id) throw new Error("部署IDが指定されていません。");
   const sheet = getCommonSpreadsheet().getSheetByName('部署マスタ');
   if (!sheet) throw new Error("「部署マスタ」シートが見つかりません。");
@@ -528,6 +541,7 @@ function getAssignments() {
 }
 
 function registerAssignment(param) {
+  assertAdmin_();
   const sheet = getCommonSpreadsheet().getSheetByName('所属履歴');
   const newStart = new Date(param.startDate);
   const newEnd = param.endDate ? new Date(param.endDate) : new Date('9999/12/31');
@@ -572,11 +586,12 @@ function formatDate_(dateStr) {
 /**
  * 外部システム（戦略AP等）連携用API
  * 共通基盤の最新マスタデータを一括返却する
+ * ※ライブラリ経由で戦略APから呼ばれるため管理者チェックは行わない（パスワード関連の項目は含めない）
  * @return {Object} 全マスタデータを含むオブジェクト
  */
 function exportCommonMasterData() {
   return {
-    employees: getEmployeeDataForWeb(),
+    employees: buildEmployeeListForDisplay_(),
     departments: getDepartments(),
     sections: getSections(),
     assignments: getAssignments()
@@ -607,16 +622,12 @@ function migrateAddMustChangeColumn() {
   return { success: true, updatedRows: rowCount };
 }
 
-function testLogin() {
-  const result = verifyLogin('asa.miyamoto.3@gmail.com', 'E0001');
-  Logger.log(JSON.stringify(result, null, 2));
-}
-
 /**
  * 退職処理：在籍状況を'退職'に、利用終了日を設定する。
  * 有効フラグはここでは変更しない（退職と無効化は別概念のため）。
  */
 function retireEmployee(employeeId, endDateStr) {
+  assertAdmin_();
   if (!employeeId) throw new Error("社員IDが指定されていません。");
   if (!endDateStr) throw new Error("利用終了日を指定してください。");
 
@@ -644,6 +655,7 @@ function retireEmployee(employeeId, endDateStr) {
  * 主所属の付け替えはここでは扱わない（reassignPrimaryAssignmentを参照）。
  */
 function updateEmployeeFromWeb(employeeId, name, email, status, endDateStr) {
+  assertAdmin_();
   if (!employeeId) throw new Error("社員IDが指定されていません。");
   if (!name) throw new Error("氏名を入力してください。");
   if (!email) throw new Error("メールアドレスを入力してください。");
@@ -681,6 +693,7 @@ function updateEmployeeFromWeb(employeeId, name, email, status, endDateStr) {
  * 部署は事業部配下に部署が存在しない場合を考慮し、未指定（事業部のみ）を許容する。
  */
 function reassignPrimaryAssignment(employeeId, newDepartmentId, newSectionId, effectiveDateStr) {
+  assertAdmin_();
   if (!employeeId) throw new Error("社員IDが指定されていません。");
   if (!effectiveDateStr) throw new Error("異動日を指定してください。");
   if (!newDepartmentId && newSectionId) throw new Error("部署を指定する場合は事業部も指定してください。");
