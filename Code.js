@@ -17,6 +17,7 @@ const ADMIN_ALLOWED_EMAILS_ = ['admin@j-shelter.com'];
 // 社員マスタの列番号（1始まり）
 const EMP_COL_PASSWORD_ = 8;     // H列：パスワード
 const EMP_COL_MUST_CHANGE_ = 9;  // I列：PW変更要
+const EMP_COL_PW_CHANGED_AT_ = 10; // J列：PW変更日時
 
 // CacheServiceのキー接頭辞（SSOトークンとログインセッションの取り違え防止）
 const SSO_TOKEN_PREFIX_ = 'SSO_';
@@ -123,14 +124,14 @@ function authenticate_(email, password) {
 /**
  * ログイン完了時の戻り値（ログインセッションを発行する）
  */
-function buildLoginResult_(emp) {
+function buildLoginResult_(emp, sessionCreatedAt) {
   return {
     success: true,
     empId: emp.empId,
     name: emp.name,
     departmentName: emp.departmentName,
     sectionName: emp.sectionName,
-    sessionId: createSession_(emp.empId)
+    sessionId: createSession_(emp.empId, sessionCreatedAt)
   };
 }
 
@@ -167,9 +168,11 @@ function changePassword(email, currentPw, newPw) {
 
   const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
   const targetRow = findEmployeeRow_(sheet, emp.empId);
-  sheet.getRange(targetRow, EMP_COL_PASSWORD_, 1, 2).setValues([[hashPassword_(newPw), false]]);
+  // PW変更日時と同じ時刻でセッションを作成し、変更を行ったセッション自体は継続利用できるようにする
+  const now = new Date().getTime();
+  sheet.getRange(targetRow, EMP_COL_PASSWORD_, 1, 3).setValues([[hashPassword_(newPw), false, toPwChangedAt_(now)]]);
 
-  return buildLoginResult_(emp);
+  return buildLoginResult_(emp, now);
 }
 
 /**
@@ -182,7 +185,7 @@ function adminResetPassword(employeeId) {
   const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
   if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
   const targetRow = findEmployeeRow_(sheet, employeeId);
-  sheet.getRange(targetRow, EMP_COL_PASSWORD_, 1, 2).setValues([[hashPassword_(employeeId), true]]);
+  sheet.getRange(targetRow, EMP_COL_PASSWORD_, 1, 3).setValues([[hashPassword_(employeeId), true, toPwChangedAt_(new Date().getTime())]]);
 
   return { success: true, employeeId: employeeId };
 }
@@ -191,16 +194,24 @@ function adminResetPassword(employeeId) {
 // ログインセッション（共通基盤内の再遷移用）
 // ----------------------------------------------------
 
-function createSession_(employeeId) {
+/**
+ * PW変更日時としてJ列に記録する値
+ * 秒単位に切り捨てる（シート保存時のミリ秒丸めで、記録が実際の変更時刻より後にずれるのを防ぐ）
+ */
+function toPwChangedAt_(timeMs) {
+  return new Date(Math.floor(timeMs / 1000) * 1000);
+}
+
+function createSession_(employeeId, createdAt) {
   const sessionId = SESSION_PREFIX_ + Utilities.getUuid();
-  const sessionData = { employeeId: employeeId, createdAt: new Date().getTime() };
+  const sessionData = { employeeId: employeeId, createdAt: createdAt || new Date().getTime() };
   CacheService.getScriptCache().put(sessionId, JSON.stringify(sessionData), SESSION_TTL_SEC_);
   return sessionId;
 }
 
 /**
  * ログインセッションから遷移用SSOトークンを都度発行する
- * 社員の状態（有効・退職・PW変更要）を毎回確認し、NGならセッションも破棄する
+ * 社員の状態（有効・退職・PW変更要・セッション作成後のPW変更）を毎回確認し、NGならセッションも破棄する
  */
 function issueSsoTokenForSession(sessionId) {
   const expiredMsg = "セッションの有効期限が切れました。再度ログインしてください。";
@@ -212,7 +223,7 @@ function issueSsoTokenForSession(sessionId) {
 
   const session = JSON.parse(sessionStr);
   const emp = getEmployeeRecords_().find(e => e.empId === session.employeeId);
-  if (!isActiveEmployee_(emp) || emp.mustChangePassword) {
+  if (!isActiveEmployee_(emp) || emp.mustChangePassword || session.createdAt < emp.pwChangedAt) {
     cache.remove(sessionId);
     throw new Error("アカウントの状態が変更されました。再度ログインしてください。");
   }
@@ -273,6 +284,9 @@ function verifySsoToken(token) {
 
   if (!isActiveEmployee_(emp)) {
     return { isValid: false, error: "共通基盤上でアクセス権が無効化されています。" };
+  }
+  if (tokenData.createdAt < emp.pwChangedAt) {
+    return { isValid: false, error: "パスワードが変更されたため、トークンは無効です。" };
   }
   cache.remove(token);
   return {
@@ -346,7 +360,7 @@ function getEmployeeDataForWeb() {
  */
 function buildEmployeeListForDisplay_() {
   return getEmployeeRecords_().map(emp => {
-    const { password, mustChangePassword, ...publicFields } = emp;
+    const { password, mustChangePassword, pwChangedAt, ...publicFields } = emp;
     return publicFields;
   });
 }
@@ -407,6 +421,7 @@ function getEmployeeRecords_() {
       isValid: row[6] === false ? '無効' : '有効',
       password: row[7] || '', // H列（8列目）ハッシュ値を取得
       mustChangePassword: row[8] === true || String(row[8]).toUpperCase() === 'TRUE', // I列（空欄はFALSE扱い）
+      pwChangedAt: row[9] instanceof Date ? row[9].getTime() : 0, // J列（空欄＝記録なしは0）
       departmentId: currentAssign.deptId, sectionId: currentAssign.secId,
       departmentName: currentAssign.deptName, sectionName: currentAssign.secName,
       concurrentAssignments: concurrentAssignMap[empId] || []
