@@ -599,30 +599,6 @@ function exportCommonMasterData() {
 }
 
 /**
- * 【一回限り・手動実行】社員マスタにI列「PW変更要」を追加し、既存の全社員をTRUEにする
- * エディタの実行メニューから選べるよう末尾に _ を付けていない。
- * I1が既に「PW変更要」なら何もしないため、再実行・誤呼び出しでも既存データは変わらない。
- */
-function migrateAddMustChangeColumn() {
-  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
-  if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
-
-  const header = sheet.getRange(1, EMP_COL_MUST_CHANGE_);
-  if (header.getValue() === 'PW変更要') {
-    Logger.log('I列「PW変更要」は追加済みのため、処理しませんでした。');
-    return { success: true, skipped: true };
-  }
-
-  header.setValue('PW変更要');
-  const rowCount = sheet.getLastRow() - 1;
-  if (rowCount > 0) {
-    sheet.getRange(2, EMP_COL_MUST_CHANGE_, rowCount, 1).setValues(Array.from({ length: rowCount }, () => [true]));
-  }
-  Logger.log('I列「PW変更要」を追加し、' + rowCount + '行をTRUEに設定しました。');
-  return { success: true, updatedRows: rowCount };
-}
-
-/**
  * 退職処理：在籍状況を'退職'に、利用終了日を設定する。
  * 有効フラグはここでは変更しない（退職と無効化は別概念のため）。
  */
