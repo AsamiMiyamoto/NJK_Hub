@@ -150,6 +150,7 @@
     .badge-inactive { background-color: #f8d7da; color: #721c24; }
     .badge-main { background-color: #cce5ff; color: #004085; }
     .badge-sub { background-color: #fff3cd; color: #856404; }
+    .badge-leave { background-color: #e2e3f5; color: #383d7c; }
 
     .modal {
       display: none;
@@ -628,7 +629,7 @@
           <td>${emp.email}</td>
           <td>${emp.departmentName}</td>
           <td>${emp.sectionName}</td>
-          <td>${emp.status}</td>
+          <td>${emp.status === '休職' ? '<span class="badge badge-leave">休職</span>' : emp.status}</td>
           <td>${emp.startDate}</td>
           <td><span class="badge ${badgeClass}">${emp.isValid}</span></td>
           <td>
