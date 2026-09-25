@@ -845,6 +845,7 @@ function retireEmployee(employeeId, endDateStr) {
  * 社員情報の編集（氏名・メールアドレス・在籍状況）
  * 在籍状況が「退職」の場合のみ利用終了日を必須とし、そうでない場合は利用終了日をクリアする。
  * 退職済みの社員は在籍状況を変更できない（退職のまま、他の項目の編集は可）。
+ * 退職済みの社員は利用終了日を必須とせず、指定された場合のみ上書きする。
  * 主所属の付け替えはここでは扱わない（reassignPrimaryAssignmentを参照）。
  */
 function updateEmployeeFromWeb(employeeId, name, email, status, endDateStr) {
@@ -863,16 +864,19 @@ function updateEmployeeFromWeb(employeeId, name, email, status, endDateStr) {
   }
   if (targetRow < 0) throw new Error("指定された社員IDが見つかりません: " + employeeId);
   assertEmployeeStatus_(status);
-  if (data[targetRow - 1][3] === '退職' && status !== '退職') throw new Error("退職済みの社員の在籍状況は変更できません。");
+  const alreadyRetired = data[targetRow - 1][3] === '退職';
+  if (alreadyRetired && status !== '退職') throw new Error("退職済みの社員の在籍状況は変更できません。");
+  if (status === '退職' && !alreadyRetired && !endDateStr) throw new Error("退職の場合は利用終了日を指定してください。");
 
   sheet.getRange(targetRow, 2).setValue(name);
   sheet.getRange(targetRow, 3).setValue(email);
 
   if (status === '退職') {
-    if (!endDateStr) throw new Error("退職の場合は利用終了日を指定してください。");
-    const formattedEndDate = Utilities.formatDate(new Date(endDateStr), Session.getScriptTimeZone(), 'yyyy/MM/dd');
     sheet.getRange(targetRow, 4).setValue('退職');
-    sheet.getRange(targetRow, 6).setValue(formattedEndDate);
+    if (endDateStr) {
+      const formattedEndDate = Utilities.formatDate(new Date(endDateStr), Session.getScriptTimeZone(), 'yyyy/MM/dd');
+      sheet.getRange(targetRow, 6).setValue(formattedEndDate);
+    }
   } else {
     sheet.getRange(targetRow, 4).setValue(status);
     sheet.getRange(targetRow, 6).setValue('');

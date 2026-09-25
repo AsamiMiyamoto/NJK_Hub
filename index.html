@@ -458,6 +458,8 @@
     <form id="employee-edit-form" onsubmit="handleEmployeeEditSubmit(event)">
       <input type="hidden" id="emp-edit-orig-dept">
       <input type="hidden" id="emp-edit-orig-sec">
+      <input type="hidden" id="emp-edit-orig-status">
+      <input type="hidden" id="emp-edit-orig-retire-date">
       <div class="form-group">
         <label>社員ID</label>
         <input type="text" id="emp-edit-id" readonly style="background-color: #f0f0f0;">
@@ -503,9 +505,9 @@
         <div id="emp-edit-status-locked-note" style="display:none; font-size:12px; color:#666; margin-top:4px;">退職済みのため、在籍状況は変更できません。</div>
       </div>
       <div class="form-group" id="emp-edit-retire-date-group" style="display:none;">
-        <label>利用終了日 <span style="color:red">*</span></label>
+        <label>利用終了日 <span style="color:red" id="emp-edit-retire-date-required">*</span></label>
         <input type="date" id="emp-edit-retire-date">
-        <p class="warning-box">在籍状況を「退職」に変更すると、システムの利用ができなくなります。この操作は取り消せません。</p>
+        <p class="warning-box" id="emp-edit-retire-warning">在籍状況を「退職」に変更すると、システムの利用ができなくなります。この操作は取り消せません。</p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeEmployeeEditModal()">キャンセル</button>
@@ -921,7 +923,13 @@
     const retired = emp.status === '退職';
     document.getElementById('emp-edit-status').disabled = retired;
     document.getElementById('emp-edit-status-locked-note').style.display = retired ? 'block' : 'none';
-    document.getElementById('emp-edit-retire-date').value = '';
+    // 退職済みの社員は現在の利用終了日を表示し、必須にしない（変更したときだけ上書きする）
+    const origRetireDate = retired && /^\d{4}\/\d{2}\/\d{2}$/.test(emp.endDate) ? emp.endDate.replace(/\//g, '-') : '';
+    document.getElementById('emp-edit-orig-status').value = emp.status;
+    document.getElementById('emp-edit-orig-retire-date').value = origRetireDate;
+    document.getElementById('emp-edit-retire-date').value = origRetireDate;
+    document.getElementById('emp-edit-retire-date-required').style.display = retired ? 'none' : 'inline';
+    document.getElementById('emp-edit-retire-warning').style.display = retired ? 'none' : 'block';
     toggleEmployeeEditRetireDate();
 
     document.getElementById('employee-edit-modal').style.display = 'flex';
@@ -1014,9 +1022,14 @@
     const name = document.getElementById('emp-edit-name').value;
     const email = document.getElementById('emp-edit-email').value;
     const status = document.getElementById('emp-edit-status').value;
-    const retireDate = document.getElementById('emp-edit-retire-date').value;
+    const alreadyRetired = document.getElementById('emp-edit-orig-status').value === '退職';
+    const inputRetireDate = document.getElementById('emp-edit-retire-date').value;
+    // 退職済みの社員は、利用終了日を変更したときだけ送る（空なら現在の値を維持）
+    const retireDate = alreadyRetired
+      ? (inputRetireDate !== document.getElementById('emp-edit-orig-retire-date').value ? inputRetireDate : '')
+      : inputRetireDate;
 
-    if (status === '退職') {
+    if (status === '退職' && !alreadyRetired) {
       if (!retireDate) { alert('利用終了日を指定してください。'); return; }
       if (!confirm('在籍状況を「退職」に変更します。システムの利用ができなくなりますが、よろしいですか？')) return;
     }
