@@ -211,6 +211,8 @@
     <h2>NJK社内システム 共通基盤管理画面</h2>
   </header>
 
+  <div id="load-error" class="warning-box" style="display:none; white-space:pre-line;"></div>
+
   <!-- タブナビゲーション -->
   <ul class="nav-tabs">
     <li class="nav-tab active" onclick="switchTab('employee-tab', this)">社員マスタ</li>
@@ -603,10 +605,32 @@
 
   function loadAllMasterData() {
     if (typeof google === 'undefined' || !google.script) return;
-    google.script.run.withSuccessHandler(renderDepartmentTable).getDepartments();
-    google.script.run.withSuccessHandler(renderSectionTable).getSections();
-    google.script.run.withSuccessHandler(renderEmployeeTable).getEmployeeDataForWeb();
-    google.script.run.withSuccessHandler(renderHistoryTable).getAssignments();
+    document.getElementById('load-error').style.display = 'none';
+    document.getElementById('load-error').textContent = '';
+    loadMaster_('事業部', 'getDepartments', renderDepartmentTable);
+    loadMaster_('部署', 'getSections', renderSectionTable);
+    loadMaster_('社員', 'getEmployeeDataForWeb', renderEmployeeTable);
+    loadMaster_('所属履歴', 'getAssignments', renderHistoryTable);
+  }
+
+  // 読み込みに失敗した場合（サーバーエラー・データを受け取れない場合）は画面上部に表示する
+  function loadMaster_(label, fnName, render) {
+    google.script.run
+      .withSuccessHandler(data => {
+        if (data === null || data === undefined) {
+          showLoadError_(label + 'のデータを受け取れませんでした。');
+          return;
+        }
+        render(data);
+      })
+      .withFailureHandler(err => showLoadError_(label + 'の読み込みに失敗しました: ' + (err && err.message ? err.message : err)))
+      [fnName]();
+  }
+
+  function showLoadError_(message) {
+    const box = document.getElementById('load-error');
+    box.textContent = (box.textContent ? box.textContent + '\n' : '') + message;
+    box.style.display = 'block';
   }
 
   function renderEmployeeTable(data) {
