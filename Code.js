@@ -25,6 +25,16 @@ const SESSION_PREFIX_ = 'SESSION_';
 const SSO_TOKEN_TTL_SEC_ = 300;
 const SESSION_TTL_SEC_ = 21600; // 6時間（CacheServiceの上限）
 
+// 試行回数制限（キーは 接頭辞＋SHA-256(入力メールアドレス)。ロックは同じキーの末尾に _lock を付ける）
+const LOGIN_FAIL_PREFIX_ = 'loginfail_';
+const PW_CHANGE_FAIL_PREFIX_ = 'pwchgfail_';
+const AUTH_FAIL_LIMIT_ = 5;
+const AUTH_FAIL_TTL_SEC_ = 900;
+
+// 管理者リセット時の仮PW（紛らわしい 0 O 1 l I を除く）
+const TEMP_PW_LENGTH_ = 12;
+const TEMP_PW_CHARS_ = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
 function isAdmin_() {
   return ADMIN_ALLOWED_EMAILS_.indexOf(Session.getActiveUser().getEmail()) !== -1;
 }
@@ -95,9 +105,62 @@ function verifyPassword_(plain, stored) {
 /**
  * パスワードルールの検証（違反時は日本語メッセージで例外）
  */
-function validatePasswordRule_(newPw, employeeId) {
+function validatePasswordRule_(newPw, employeeId, currentPw) {
   if (typeof newPw !== 'string' || newPw.length < 8) throw new Error("パスワードは8文字以上で入力してください。");
   if (newPw === employeeId) throw new Error("社員IDと同じパスワードは使用できません。");
+  if (newPw === currentPw) throw new Error("現在のパスワードと同じパスワードは使用できません。");
+}
+
+/**
+ * 管理者リセット用の仮PWを生成する（乱数源は Utilities.getUuid()）
+ * 偏りを避けるため、文字種数の倍数未満のバイトだけを採用する
+ */
+function generateTempPassword_() {
+  const n = TEMP_PW_CHARS_.length;
+  const limit = Math.floor(256 / n) * n;
+  let pw = '';
+  while (pw.length < TEMP_PW_LENGTH_) {
+    const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, Utilities.getUuid());
+    for (let i = 0; i < bytes.length && pw.length < TEMP_PW_LENGTH_; i++) {
+      const b = bytes[i] < 0 ? bytes[i] + 256 : bytes[i];
+      if (b < limit) pw += TEMP_PW_CHARS_.charAt(b % n);
+    }
+  }
+  return pw;
+}
+
+// ----------------------------------------------------
+// 試行回数制限
+// ----------------------------------------------------
+
+function authFailKey_(prefix, email) {
+  return prefix + computeHash_(String(email));
+}
+
+/**
+ * 失敗回数を加算し、上限に達したらロックする（厳密な原子性は求めない）
+ */
+function recordAuthFailure_(key) {
+  const cache = CacheService.getScriptCache();
+  const count = Number(cache.get(key) || 0) + 1;
+  if (count >= AUTH_FAIL_LIMIT_) {
+    cache.put(key + '_lock', '1', AUTH_FAIL_TTL_SEC_);
+    cache.remove(key);
+  } else {
+    cache.put(key, String(count), AUTH_FAIL_TTL_SEC_);
+  }
+}
+
+/**
+ * 対象メールアドレスのログイン・PW変更の失敗回数とロックをすべて解除する
+ */
+function clearAuthFailures_(email) {
+  const keys = [];
+  [LOGIN_FAIL_PREFIX_, PW_CHANGE_FAIL_PREFIX_].forEach(prefix => {
+    const key = authFailKey_(prefix, email);
+    keys.push(key, key + '_lock');
+  });
+  CacheService.getScriptCache().removeAll(keys);
 }
 
 // ----------------------------------------------------
@@ -110,14 +173,23 @@ function isActiveEmployee_(emp) {
 
 /**
  * メールアドレス＋パスワードの照合。成功時は社員レコード（内部用）を返す
+ * failPrefix ごとに試行回数を数え、ロック中はPWを照合せずに拒否する。
+ * 存在しないメールアドレスも同じく数え、無効・退職はPWが一致した場合のみ知らせる（登録有無を推測させないため）
  */
-function authenticate_(email, password) {
-  const emp = getEmployeeRecords_().find(e => e.email === email);
+function authenticate_(email, password, failPrefix) {
+  const cache = CacheService.getScriptCache();
+  const failKey = authFailKey_(failPrefix, email);
+  if (cache.get(failKey + '_lock')) throw new Error("試行回数が上限に達しました。15分ほどしてから再度お試しください。");
 
-  if (!emp) throw new Error("メールアドレスまたはパスワードが間違っています。");
+  const emp = getEmployeeRecords_().find(e => e.email === email);
+  if (!emp || !verifyPassword_(password, emp.password)) {
+    recordAuthFailure_(failKey);
+    throw new Error("メールアドレスまたはパスワードが間違っています。");
+  }
+  cache.remove(failKey);
+
   if (emp.isValid !== '有効') throw new Error("無効化されているアカウントです。");
   if (emp.status === '退職') throw new Error("退職済みのアカウントです。");
-  if (!verifyPassword_(password, emp.password)) throw new Error("メールアドレスまたはパスワードが間違っています。");
   return emp;
 }
 
@@ -142,7 +214,7 @@ function buildLoginResult_(emp, sessionCreatedAt) {
 function verifyLogin(email, password) {
   if (!email || !password) throw new Error("メールアドレスとパスワードを入力してください。");
 
-  const emp = authenticate_(email, password);
+  const emp = authenticate_(email, password, LOGIN_FAIL_PREFIX_);
 
   if (emp.mustChangePassword) {
     return {
@@ -163,8 +235,8 @@ function verifyLogin(email, password) {
 function changePassword(email, currentPw, newPw) {
   if (!email || !currentPw || !newPw) throw new Error("メールアドレス・現在のパスワード・新しいパスワードを入力してください。");
 
-  const emp = authenticate_(email, currentPw);
-  validatePasswordRule_(newPw, emp.empId);
+  const emp = authenticate_(email, currentPw, PW_CHANGE_FAIL_PREFIX_);
+  validatePasswordRule_(newPw, emp.empId, currentPw);
 
   const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
   const targetRow = findEmployeeRow_(sheet, emp.empId);
@@ -176,7 +248,8 @@ function changePassword(email, currentPw, newPw) {
 }
 
 /**
- * 管理者によるPWリセット：初期PW（社員ID）に戻し、PW変更要をTRUEにする
+ * 管理者によるPWリセット：ランダムな仮PWを設定し、PW変更要をTRUEにする。試行回数のロックも解除する
+ * 仮PWは呼び出し元の管理者への戻り値でのみ返す（ログ・シート・プロパティには残さない）
  */
 function adminResetPassword(employeeId) {
   assertAdmin_();
@@ -185,9 +258,11 @@ function adminResetPassword(employeeId) {
   const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
   if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
   const targetRow = findEmployeeRow_(sheet, employeeId);
-  sheet.getRange(targetRow, EMP_COL_PASSWORD_, 1, 3).setValues([[hashPassword_(employeeId), true, toPwChangedAt_(new Date().getTime())]]);
+  const tempPassword = generateTempPassword_();
+  sheet.getRange(targetRow, EMP_COL_PASSWORD_, 1, 3).setValues([[hashPassword_(tempPassword), true, toPwChangedAt_(new Date().getTime())]]);
+  clearAuthFailures_(sheet.getRange(targetRow, 3).getValue()); // C列：メールアドレス
 
-  return { success: true, employeeId: employeeId };
+  return { success: true, employeeId: employeeId, tempPassword: tempPassword };
 }
 
 // ----------------------------------------------------

@@ -534,6 +534,28 @@
   </div>
 </div>
 
+<!-- PWリセット完了モーダル（仮PWは閉じると再表示できない） -->
+<div id="temp-pw-modal" class="modal">
+  <div class="modal-content">
+    <h3>パスワードをリセットしました</h3>
+    <div class="form-group">
+      <label>対象社員</label>
+      <input type="text" id="temp-pw-emp-info" readonly style="background-color: #f0f0f0;">
+    </div>
+    <div class="form-group">
+      <label>仮パスワード</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="temp-pw-value" readonly style="background-color: #f0f0f0; font-family: monospace; font-size: 16px;">
+        <button type="button" class="btn-secondary btn-sm" id="temp-pw-copy-btn" onclick="copyTempPassword()" style="white-space:nowrap;">コピー</button>
+      </div>
+    </div>
+    <p class="warning-box">この画面を閉じると再表示できません。本人に直接伝えてください。</p>
+    <div class="modal-footer">
+      <button type="button" class="btn-primary" onclick="closeTempPasswordModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <script>
   let cachedEmployees = [];
   let cachedDepartments = [];
@@ -1038,20 +1060,43 @@
       .adminGenerateSsoToken(selectedSsoEmpId);
   }
 
-  // PWリセット：初期パスワード（社員ID）に戻し、次回ログイン時に変更を求める
+  // PWリセット：ランダムな仮パスワードを設定し、次回ログイン時に変更を求める
   function resetEmployeePassword(empId, btn) {
     const emp = cachedEmployees.find(e => e.empId === empId);
     const label = emp ? empId + ' : ' + emp.name : empId;
-    if (!confirm(label + ' のパスワードを初期パスワード（社員ID）にリセットします。\n次回ログイン時にパスワードの変更が必要になります。よろしいですか？')) return;
+    if (!confirm(label + ' のパスワードを仮パスワードにリセットします。\n次回ログイン時にパスワードの変更が必要になります。よろしいですか？')) return;
 
     btn.disabled = true;
     google.script.run
-      .withSuccessHandler(() => {
+      .withSuccessHandler(res => {
         btn.disabled = false;
-        alert(label + ' のパスワードを初期パスワード（社員ID）に戻しました。');
+        document.getElementById('temp-pw-emp-info').value = label;
+        document.getElementById('temp-pw-value').value = res.tempPassword;
+        document.getElementById('temp-pw-copy-btn').textContent = 'コピー';
+        document.getElementById('temp-pw-modal').style.display = 'flex';
       })
       .withFailureHandler(err => { alert('PWリセット失敗: ' + err.message); btn.disabled = false; })
       .adminResetPassword(empId);
+  }
+
+  function copyTempPassword() {
+    const input = document.getElementById('temp-pw-value');
+    const btn = document.getElementById('temp-pw-copy-btn');
+    const done = () => { btn.textContent = 'コピーしました'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(input.value).then(done, () => { input.select(); document.execCommand('copy'); done(); });
+    } else {
+      input.select();
+      document.execCommand('copy');
+      done();
+    }
+  }
+
+  // 閉じたら仮パスワードを画面から消す（再表示させない）
+  function closeTempPasswordModal() {
+    document.getElementById('temp-pw-value').value = '';
+    document.getElementById('temp-pw-emp-info').value = '';
+    document.getElementById('temp-pw-modal').style.display = 'none';
   }
 </script>
 
