@@ -225,6 +225,7 @@
         <label style="font-weight:normal; margin-right:12px;">
           <input type="checkbox" id="show-retired-checkbox" onchange="renderEmployeeRows()"> 退職者も表示
         </label>
+        <button class="btn-secondary" id="bulk-reset-btn" onclick="bulkResetIdPasswords()" style="margin-right:8px;">初期PWの社員に仮PWを一括発行</button>
         <button class="btn-primary" onclick="openEmployeeModal()">＋ 新規社員登録</button>
       </div>
     </div>
@@ -552,6 +553,26 @@
     <p class="warning-box">この画面を閉じると再表示できません。本人に直接伝えてください。</p>
     <div class="modal-footer">
       <button type="button" class="btn-primary" onclick="closeTempPasswordModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 仮PW一括発行の結果モーダル（仮PWは閉じると再表示できない） -->
+<div id="bulk-temp-pw-modal" class="modal">
+  <div class="modal-content" style="width: 760px;">
+    <h3>仮パスワードを一括発行しました</h3>
+    <div style="max-height: 50vh; overflow-y: auto;">
+      <table>
+        <thead>
+          <tr><th>社員ID</th><th>氏名</th><th>メールアドレス</th><th>仮パスワード</th></tr>
+        </thead>
+        <tbody id="bulk-temp-pw-list"></tbody>
+      </table>
+    </div>
+    <p class="warning-box">この画面を閉じると再表示できません。本人ごとに個別に伝え、コピーした内容は配布後に破棄してください。</p>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="bulk-temp-pw-copy-btn" onclick="copyBulkTempPasswords()">表をコピー（TSV）</button>
+      <button type="button" class="btn-primary" onclick="closeBulkTempPasswordModal()">閉じる</button>
     </div>
   </div>
 </div>
@@ -1097,6 +1118,85 @@
       document.execCommand('copy');
       done();
     }
+  }
+
+  // 初期PW（社員ID）のままの社員に仮PWを一括発行する（対象はサーバー側で実行時に再判定）
+  let bulkTempPasswords = [];
+
+  function bulkResetIdPasswords() {
+    const btn = document.getElementById('bulk-reset-btn');
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(list => {
+        if (!list || list.length === 0) {
+          btn.disabled = false;
+          alert('対象者はいません');
+          return;
+        }
+        const names = list.map(e => e.employeeId + ' : ' + e.name).join('\n');
+        if (!confirm('初期パスワード（社員ID）のままの社員が ' + list.length + ' 件あります。\n\n' + names +
+            '\n\nこの社員に仮パスワードを一括発行します。次回ログイン時にパスワードの変更が必要になります。よろしいですか？')) {
+          btn.disabled = false;
+          return;
+        }
+        google.script.run
+          .withSuccessHandler(results => {
+            btn.disabled = false;
+            if (!results || results.length === 0) { alert('対象者はいません'); return; }
+            showBulkTempPasswordModal(results);
+          })
+          .withFailureHandler(err => { alert('一括発行失敗: ' + err.message); btn.disabled = false; })
+          .adminBulkResetIdPasswords();
+      })
+      .withFailureHandler(err => { alert('対象者の取得失敗: ' + err.message); btn.disabled = false; })
+      .adminListIdPasswordEmployees();
+  }
+
+  // 閉じる経路は closeBulkTempPasswordModal() のみ
+  function showBulkTempPasswordModal(results) {
+    bulkTempPasswords = results;
+    const tbody = document.getElementById('bulk-temp-pw-list');
+    tbody.innerHTML = '';
+    results.forEach(r => {
+      const tr = document.createElement('tr');
+      [r.employeeId, r.name, r.email, r.tempPassword].forEach((v, i) => {
+        const td = document.createElement('td');
+        td.textContent = v;
+        if (i === 3) td.style.fontFamily = 'monospace';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    document.getElementById('bulk-temp-pw-copy-btn').textContent = '表をコピー（TSV）';
+    document.getElementById('bulk-temp-pw-modal').style.display = 'flex';
+  }
+
+  function copyBulkTempPasswords() {
+    const tsv = ['社員ID\t氏名\tメールアドレス\t仮パスワード']
+      .concat(bulkTempPasswords.map(r => [r.employeeId, r.name, r.email, r.tempPassword].join('\t')))
+      .join('\n');
+    const btn = document.getElementById('bulk-temp-pw-copy-btn');
+    const done = () => { btn.textContent = 'コピーしました'; };
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = tsv;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(tsv).then(done, fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  function closeBulkTempPasswordModal() {
+    bulkTempPasswords = [];
+    document.getElementById('bulk-temp-pw-list').innerHTML = '';
+    document.getElementById('bulk-temp-pw-modal').style.display = 'none';
   }
 
   // 閉じたら仮パスワードを画面から消す（再表示させない）

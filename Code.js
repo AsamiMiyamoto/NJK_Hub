@@ -431,6 +431,67 @@ function listEmployeesWithIdAsPassword() {
 }
 
 /**
+ * 社員マスタのA〜J列（見出し行を除く）を読み込む
+ */
+function readEmployeeRows_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+  return sheet.getRange(2, 1, lastRow - 1, EMP_COL_PW_CHANGED_AT_).getValues();
+}
+
+/**
+ * 仮PW一括発行の対象か：PW変更要（I列TRUE）かつPWが社員IDのまま、かつ有効で退職していない
+ */
+function isIdPasswordTarget_(row) {
+  const empId = String(row[0] || '');
+  const mustChange = row[8] === true || String(row[8]).toUpperCase() === 'TRUE';
+  return !!empId && mustChange && row[6] !== false && row[3] !== '退職' && verifyPassword_(empId, row[7]);
+}
+
+/**
+ * 管理画面用：初期PW（社員ID）のままの社員一覧（読み取り専用）
+ */
+function adminListIdPasswordEmployees() {
+  assertAdmin_();
+  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
+  if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
+  return readEmployeeRows_(sheet).filter(isIdPasswordTarget_)
+    .map(row => ({ employeeId: String(row[0]), name: row[1] || '' }));
+}
+
+/**
+ * 管理画面用：初期PW（社員ID）のままの社員に仮PWを一括発行する
+ * 対象は実行時点で再判定し（画面からは受け取らない）、H〜J列は対象行の範囲をまとめて書き込む
+ * 仮PWは呼び出し元の管理者への戻り値でのみ返す（ログ・シート・プロパティには残さない）
+ */
+function adminBulkResetIdPasswords() {
+  assertAdmin_();
+  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
+  if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
+
+  const rows = readEmployeeRows_(sheet);
+  const targetIdx = [];
+  rows.forEach((row, i) => { if (isIdPasswordTarget_(row)) targetIdx.push(i); });
+  if (targetIdx.length === 0) return [];
+
+  // 最初と最後の対象行の間だけを書き戻す（対象外の行は読み込んだ値のまま）
+  const first = targetIdx[0];
+  const last = targetIdx[targetIdx.length - 1];
+  const block = rows.slice(first, last + 1).map(row => row.slice(EMP_COL_PASSWORD_ - 1, EMP_COL_PW_CHANGED_AT_));
+  const changedAt = toPwChangedAt_(new Date().getTime());
+  const results = targetIdx.map(i => {
+    const row = rows[i];
+    const tempPassword = generateTempPassword_();
+    block[i - first] = [hashPassword_(tempPassword), true, changedAt];
+    return { employeeId: String(row[0]), name: row[1] || '', email: row[2] || '', tempPassword: tempPassword };
+  });
+  sheet.getRange(first + 2, EMP_COL_PASSWORD_, block.length, 3).setValues(block);
+
+  results.forEach(r => { if (r.email) clearAuthFailures_(r.email); });
+  return results;
+}
+
+/**
  * 社員マスタの行番号（1始まり）を返す。見つからなければ例外
  */
 function findEmployeeRow_(sheet, employeeId) {
