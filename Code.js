@@ -815,6 +815,26 @@ function assertStrategyApiKey_(apiKey) {
 }
 
 /**
+ * 外部システム（戦略AP等）連携用API：セッションの有効性確認
+ * 社員が存在しない・無効・退職、またはセッション作成後にPWが変更された場合は無効（休職は有効）
+ * PW変更日時の比較は issueSsoTokenForSession と同じ（J列は秒単位に切り捨てて記録、空欄は0で無効化しない）
+ * ※理由や社員情報は返さない
+ * @param {string} apiKey 連携用APIキー（スクリプトプロパティ API_KEY_STRATEGY_AP と照合）
+ * @param {string} empId 社員ID
+ * @param {number} sessionCreatedAtMs 戦略AP側セッションの作成時刻（ミリ秒）
+ * @return {{valid: boolean}}
+ */
+function checkEmployeeSession(apiKey, empId, sessionCreatedAtMs) {
+  assertStrategyApiKey_(apiKey);
+  const createdAt = Number(sessionCreatedAtMs);
+  if (!empId || !isFinite(createdAt) || createdAt <= 0) return { valid: false };
+
+  const emp = getEmployeeRecords_().find(e => e.empId === empId);
+  if (!isActiveEmployee_(emp) || createdAt < emp.pwChangedAt) return { valid: false };
+  return { valid: true };
+}
+
+/**
  * 退職処理：在籍状況を'退職'に、利用終了日を設定する。
  * 有効フラグはここでは変更しない（退職と無効化は別概念のため）。
  */
