@@ -19,6 +19,9 @@ const EMP_COL_PASSWORD_ = 8;     // H列：パスワード
 const EMP_COL_MUST_CHANGE_ = 9;  // I列：PW変更要
 const EMP_COL_PW_CHANGED_AT_ = 10; // J列：PW変更日時
 
+// 在籍状況（D列）に入れられる値
+const EMP_STATUSES_ = ['在籍', '休職', '退職'];
+
 // CacheServiceのキー接頭辞（SSOトークンとログインセッションの取り違え防止）
 const SSO_TOKEN_PREFIX_ = 'SSO_';
 const SESSION_PREFIX_ = 'SESSION_';
@@ -390,6 +393,8 @@ function generateNewEmployeeId() {
 
 function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId, sectionId) {
   assertAdmin_();
+  status = status || '在籍';
+  assertEmployeeStatus_(status);
   const ss = getCommonSpreadsheet();
   const sheet = ss.getSheetByName('社員マスタ');
   if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
@@ -401,7 +406,7 @@ function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId
   // 仮PWは呼び出し元の管理者への戻り値でのみ返す（ログ・シート・プロパティには残さない）
   const tempPassword = generateTempPassword_();
 
-  sheet.appendRow([newId, name, email, status || '在籍', formattedDate, '', true, hashPassword_(tempPassword), true]);
+  sheet.appendRow([newId, name, email, status, formattedDate, '', true, hashPassword_(tempPassword), true]);
 
   if (departmentId) {
     registerAssignment({
@@ -489,6 +494,13 @@ function adminBulkResetIdPasswords() {
 
   results.forEach(r => { if (r.email) clearAuthFailures_(r.email); });
   return results;
+}
+
+/**
+ * 在籍状況の値の検証（在籍／休職／退職 以外は例外）
+ */
+function assertEmployeeStatus_(status) {
+  if (EMP_STATUSES_.indexOf(status) === -1) throw new Error("在籍状況の値が不正です: " + status);
 }
 
 /**
@@ -832,6 +844,7 @@ function retireEmployee(employeeId, endDateStr) {
 /**
  * 社員情報の編集（氏名・メールアドレス・在籍状況）
  * 在籍状況が「退職」の場合のみ利用終了日を必須とし、そうでない場合は利用終了日をクリアする。
+ * 退職済みの社員は在籍状況を変更できない（退職のまま、他の項目の編集は可）。
  * 主所属の付け替えはここでは扱わない（reassignPrimaryAssignmentを参照）。
  */
 function updateEmployeeFromWeb(employeeId, name, email, status, endDateStr) {
@@ -849,6 +862,8 @@ function updateEmployeeFromWeb(employeeId, name, email, status, endDateStr) {
     if (data[i][0] === employeeId) { targetRow = i + 1; break; }
   }
   if (targetRow < 0) throw new Error("指定された社員IDが見つかりません: " + employeeId);
+  assertEmployeeStatus_(status);
+  if (data[targetRow - 1][3] === '退職' && status !== '退職') throw new Error("退職済みの社員の在籍状況は変更できません。");
 
   sheet.getRange(targetRow, 2).setValue(name);
   sheet.getRange(targetRow, 3).setValue(email);
