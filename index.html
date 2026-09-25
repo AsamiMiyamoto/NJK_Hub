@@ -537,7 +537,7 @@
 <!-- PWリセット完了モーダル（仮PWは閉じると再表示できない） -->
 <div id="temp-pw-modal" class="modal">
   <div class="modal-content">
-    <h3>パスワードをリセットしました</h3>
+    <h3 id="temp-pw-title"></h3>
     <div class="form-group">
       <label>対象社員</label>
       <input type="text" id="temp-pw-emp-info" readonly style="background-color: #f0f0f0;">
@@ -696,11 +696,12 @@
     const btn = document.getElementById('emp-submit-btn');
     btn.disabled = true;
     google.script.run
-      .withSuccessHandler(newId => {
-        alert('新しい社員を登録しました（社員ID: ' + newId + '）');
+      .withSuccessHandler(res => {
+        const label = res.employeeId + ' : ' + document.getElementById('emp-name').value;
         btn.disabled = false;
         closeEmployeeModal();
         loadAllMasterData();
+        showTempPasswordModal('社員を登録しました', label, res.tempPassword);
       })
       .withFailureHandler(err => { alert('登録失敗: ' + err.message); btn.disabled = false; })
       .registerEmployeeFromWeb(
@@ -1070,13 +1071,19 @@
     google.script.run
       .withSuccessHandler(res => {
         btn.disabled = false;
-        document.getElementById('temp-pw-emp-info').value = label;
-        document.getElementById('temp-pw-value').value = res.tempPassword;
-        document.getElementById('temp-pw-copy-btn').textContent = 'コピー';
-        document.getElementById('temp-pw-modal').style.display = 'flex';
+        showTempPasswordModal('パスワードをリセットしました', label, res.tempPassword);
       })
       .withFailureHandler(err => { alert('PWリセット失敗: ' + err.message); btn.disabled = false; })
       .adminResetPassword(empId);
+  }
+
+  // 仮パスワードの表示（新規登録・PWリセット共通）。閉じる経路は closeTempPasswordModal() のみ
+  function showTempPasswordModal(title, label, tempPassword) {
+    document.getElementById('temp-pw-title').textContent = title;
+    document.getElementById('temp-pw-emp-info').value = label;
+    document.getElementById('temp-pw-value').value = tempPassword;
+    document.getElementById('temp-pw-copy-btn').textContent = 'コピー';
+    document.getElementById('temp-pw-modal').style.display = 'flex';
   }
 
   function copyTempPassword() {

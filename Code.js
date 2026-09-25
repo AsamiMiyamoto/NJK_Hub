@@ -397,10 +397,11 @@ function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId
   const newId = generateNewEmployeeId();
   let formattedDate = startDateStr ? Utilities.formatDate(new Date(startDateStr), Session.getScriptTimeZone(), 'yyyy/MM/dd') : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd');
 
-  // 初期パスワードは社員IDとする（H列）。保存時はハッシュ化し、I列（PW変更要）をTRUEにする
-  const initialPassword = newId;
+  // 初期パスワードは仮PW（H列にハッシュで保存）とし、I列（PW変更要）をTRUEにする
+  // 仮PWは呼び出し元の管理者への戻り値でのみ返す（ログ・シート・プロパティには残さない）
+  const tempPassword = generateTempPassword_();
 
-  sheet.appendRow([newId, name, email, status || '在籍', formattedDate, '', true, hashPassword_(initialPassword), true]);
+  sheet.appendRow([newId, name, email, status || '在籍', formattedDate, '', true, hashPassword_(tempPassword), true]);
 
   if (departmentId) {
     registerAssignment({
@@ -408,7 +409,25 @@ function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId
       type: '主所属', startDate: formattedDate, endDate: '9999/12/31'
     });
   }
-  return newId;
+  return { success: true, employeeId: newId, tempPassword: tempPassword };
+}
+
+/**
+ * 【GASエディタで手動実行する点検用・読み取り専用】
+ * PW変更要（I列TRUE）のまま、PWが社員IDと一致している社員IDの一覧をログに出す（シートは書き換えない）
+ */
+function listEmployeesWithIdAsPassword() {
+  assertAdmin_();
+  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
+  if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
+  const data = sheet.getDataRange().getValues();
+  const ids = [];
+  for (let i = 1; i < data.length; i++) {
+    const empId = String(data[i][0] || '');
+    const mustChange = data[i][8] === true || String(data[i][8]).toUpperCase() === 'TRUE';
+    if (empId && mustChange && verifyPassword_(empId, data[i][7])) ids.push(empId);
+  }
+  Logger.log('該当 ' + ids.length + ' 件: ' + ids.join(', '));
 }
 
 /**
