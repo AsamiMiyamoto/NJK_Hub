@@ -869,7 +869,7 @@
     document.getElementById('sec-edit-dept-id').value = sec.departmentId;
     document.getElementById('sec-edit-sort').value = sec.sortOrder;
     if (sec.startDate && sec.startDate !== '-') {
-      document.getElementById('sec-edit-start-date').value = sec.startDate.replace(/\//g, '-');
+      document.getElementById('sec-edit-start-date').value = sec.startDate.split('/').join('-');
     } else {
       document.getElementById('sec-edit-start-date').value = '';
     }
@@ -948,7 +948,9 @@
     document.getElementById('emp-edit-status').disabled = retired;
     document.getElementById('emp-edit-status-locked-note').style.display = retired ? 'block' : 'none';
     // 退職済みの社員は現在の利用終了日を表示し、必須にしない（変更したときだけ上書きする）
-    const origRetireDate = retired && /^\d{4}\/\d{2}\/\d{2}$/.test(emp.endDate) ? emp.endDate.replace(/\//g, '-') : '';
+    // ※GASは配信時に行コメントを除去し、その際に正規表現内のスラッシュを誤認して行を切り落とすことがあるため、スラッシュを含む正規表現は使わない
+    const endMatch = retired ? String(emp.endDate).match(/^(\d{4})\D(\d{2})\D(\d{2})$/) : null;
+    const origRetireDate = endMatch ? endMatch[1] + '-' + endMatch[2] + '-' + endMatch[3] : '';
     document.getElementById('emp-edit-orig-status').value = emp.status;
     document.getElementById('emp-edit-orig-retire-date').value = origRetireDate;
     document.getElementById('emp-edit-retire-date').value = origRetireDate;
