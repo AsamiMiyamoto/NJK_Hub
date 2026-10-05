@@ -790,14 +790,14 @@ function formatDate_(dateStr) {
 }
 
 /**
- * 外部システム（戦略AP等）連携用API
+ * 外部システム（戦略AP・人事評価）連携用API
  * 共通基盤の最新マスタデータを一括返却する
- * ※ライブラリ経由で戦略APから呼ばれるため管理者チェックではなくAPIキーで保護する（パスワード関連の項目は含めない）
- * @param {string} apiKey 連携用APIキー（スクリプトプロパティ API_KEY_STRATEGY_AP と照合）
+ * ※ライブラリ経由で外部システムから呼ばれるため管理者チェックではなくAPIキーで保護する（パスワード関連の項目は含めない）
+ * @param {string} apiKey 連携用APIキー（スクリプトプロパティ API_KEY_STRATEGY_AP / API_KEY_JINJI と照合）
  * @return {Object} 全マスタデータを含むオブジェクト
  */
 function exportCommonMasterData(apiKey) {
-  assertStrategyApiKey_(apiKey);
+  assertApiKey_(apiKey, 'exportCommonMasterData');
   return {
     employees: buildEmployeeListForDisplay_(),
     departments: getDepartments_(),
@@ -807,25 +807,49 @@ function exportCommonMasterData(apiKey) {
 }
 
 /**
- * 戦略AP連携用APIキーの照合。未指定・不一致・プロパティ未設定はいずれも拒否する
+ * 連携用APIキーとシステム名の対応表（スクリプトプロパティ名 → システム名）
  */
-function assertStrategyApiKey_(apiKey) {
-  const expected = PropertiesService.getScriptProperties().getProperty('API_KEY_STRATEGY_AP');
-  if (!expected || !apiKey || apiKey !== expected) throw new Error('Unauthorized');
+const API_KEY_SYSTEMS_ = {
+  API_KEY_STRATEGY_AP: '戦略AP',
+  API_KEY_JINJI: '人事評価'
+};
+
+/**
+ * 連携用APIキーを照合し、呼び出し元のシステム名を返す。
+ * 未指定・いずれのキーとも不一致・プロパティ未設定はいずれも拒否する。
+ * ログにはシステム名のみ記録し、キー値は記録しない。
+ * @param {string} apiKey 連携用APIキー
+ * @param {string} apiName 呼び出されたAPI名（ログ用）
+ * @return {string} システム名
+ */
+function assertApiKey_(apiKey, apiName) {
+  if (apiKey) {
+    const props = PropertiesService.getScriptProperties();
+    for (const propName in API_KEY_SYSTEMS_) {
+      const expected = props.getProperty(propName);
+      if (expected && apiKey === expected) {
+        const systemName = API_KEY_SYSTEMS_[propName];
+        console.log(apiName + ': 呼び出し元=' + systemName);
+        return systemName;
+      }
+    }
+  }
+  console.warn(apiName + ': APIキー認証に失敗しました');
+  throw new Error('Unauthorized');
 }
 
 /**
- * 外部システム（戦略AP等）連携用API：セッションの有効性確認
+ * 外部システム（戦略AP・人事評価）連携用API：セッションの有効性確認
  * 社員が存在しない・無効・退職、またはセッション作成後にPWが変更された場合は無効（休職は有効）
  * PW変更日時の比較は issueSsoTokenForSession と同じ（J列は秒単位に切り捨てて記録、空欄は0で無効化しない）
  * ※理由や社員情報は返さない
- * @param {string} apiKey 連携用APIキー（スクリプトプロパティ API_KEY_STRATEGY_AP と照合）
+ * @param {string} apiKey 連携用APIキー（スクリプトプロパティ API_KEY_STRATEGY_AP / API_KEY_JINJI と照合）
  * @param {string} empId 社員ID
  * @param {number} sessionCreatedAtMs 戦略AP側セッションの作成時刻（ミリ秒）
  * @return {{valid: boolean}}
  */
 function checkEmployeeSession(apiKey, empId, sessionCreatedAtMs) {
-  assertStrategyApiKey_(apiKey);
+  assertApiKey_(apiKey, 'checkEmployeeSession');
   const createdAt = Number(sessionCreatedAtMs);
   if (!empId || !isFinite(createdAt) || createdAt <= 0) return { valid: false };
 
