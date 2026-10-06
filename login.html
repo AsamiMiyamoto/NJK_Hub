@@ -153,6 +153,9 @@
     }
 
     .form-group input[readonly] { background-color: #f5f5f5; }
+
+    #menu-error { margin-top: 0; }
+    .notice a { color: var(--primary-color); font-weight: bold; }
   </style>
 </head>
 <body>
@@ -212,6 +215,11 @@
         <div class="name" id="menu-name"></div>
         <div class="org" id="menu-org"></div>
       </div>
+      <div class="error-message" id="menu-error"></div>
+      <div class="notice" id="menu-fallback">
+        画面が切り替わらない場合は、こちらから開いてください。
+        <a id="menu-fallback-link" href="#" target="_top">開く</a>
+      </div>
       <button type="button" class="btn-dest" onclick="goToSystem('jinji', this)">ポータルへ</button>
       <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理へ</button>
       <span class="logout-link" onclick="backToLogin()">ログアウト</span>
@@ -226,6 +234,10 @@
 
   // ログインセッションID（共通基盤側で6時間有効）。ページを再読み込みすると破棄され、再ログインが必要
   let sessionId = null;
+
+  // 遷移先への移動がブラウザにブロックされた場合に、手動で開くリンクを出すまでの待ち時間
+  const NAV_FALLBACK_DELAY_MS = 3000;
+  let navFallbackTimer = null;
 
   function showView(viewId) {
     ['login-view', 'change-view', 'menu-view'].forEach(id => {
@@ -326,19 +338,62 @@
     document.getElementById('menu-name').textContent = res.name + ' さん';
     document.getElementById('menu-org').textContent =
       [res.departmentName, res.sectionName].filter(v => v && v !== '-' && v !== '(部署なし)').join(' / ') || '所属なし';
+    resetMenuMessages();
     showView('menu-view');
   }
 
+  function showMenuError(message) {
+    const errorBox = document.getElementById('menu-error');
+    errorBox.textContent = message;
+    errorBox.style.display = 'block';
+  }
+
+  /**
+   * 手動で開くリンクを表示する（トークン付きURL・target="_top"）
+   */
+  function showNavFallback(url) {
+    document.getElementById('menu-fallback-link').href = url;
+    document.getElementById('menu-fallback').style.display = 'block';
+  }
+
+  function resetMenuMessages() {
+    clearTimeout(navFallbackTimer);
+    navFallbackTimer = null;
+    document.getElementById('menu-error').style.display = 'none';
+    document.getElementById('menu-fallback').style.display = 'none';
+    document.getElementById('menu-fallback-link').href = '#';
+  }
+
+  /**
+   * 遷移先システムへSSOトークン付きで移動する。
+   * トークン発行を待ってから移動するため、ブラウザが画面の移動をブロックすることがある。
+   * その場合は一定時間たっても画面が移らないので、手動で開くリンクを出す（クリック操作なら移動できる）。
+   */
   function goToSystem(key, btn) {
-    if (!sessionId) return;
+    resetMenuMessages();
+    if (!sessionId) {
+      showMenuError('ログイン状態を確認できません。ログアウトして、再度ログインしてください。');
+      return;
+    }
     const targetUrl = SYSTEM_URLS[key];
-    if (!targetUrl) return;
+    if (!targetUrl) {
+      showMenuError('遷移先が設定されていません。管理者にお問い合わせください。');
+      return;
+    }
     btn.disabled = true;
 
     google.script.run
       .withSuccessHandler(res => {
         btn.disabled = false;
-        window.top.location.href = targetUrl + '?sso_token=' + encodeURIComponent(res.token);
+        const url = targetUrl + '?sso_token=' + encodeURIComponent(res.token);
+        navFallbackTimer = setTimeout(() => showNavFallback(url), NAV_FALLBACK_DELAY_MS);
+        try {
+          window.top.location.href = url;
+        } catch (e) {
+          // ブロック時に例外となるブラウザもあるため、その場合はすぐにリンクを出す
+          clearTimeout(navFallbackTimer);
+          showNavFallback(url);
+        }
       })
       .withFailureHandler(err => {
         btn.disabled = false;
@@ -350,6 +405,7 @@
   }
 
   function backToLogin() {
+    resetMenuMessages();
     if (sessionId) {
       google.script.run.logoutSession(sessionId);
       sessionId = null;
