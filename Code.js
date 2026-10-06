@@ -67,6 +67,21 @@ function isFixedAdmin_(email) {
 }
 
 /**
+ * スクリプトロックを取得して fn を実行する（ID採番〜書き込みを他の実行と重ねないため）。
+ * 解放前に flush し、次にロックを取った実行が書き込み後の値を読めるようにする
+ */
+function withScriptLock_(fn) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    return fn();
+  } finally {
+    SpreadsheetApp.flush();
+    lock.releaseLock();
+  }
+}
+
+/**
  * タブを取得する。無ければ見出し付きで作成する
  */
 function getOrCreateSheet_(ss, name, headers) {
@@ -567,23 +582,25 @@ function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId
   const ss = getCommonSpreadsheet();
   const sheet = ss.getSheetByName('社員マスタ');
   if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
-  assertEmployeeEmailAvailable_(sheet.getDataRange().getValues(), email, '');
-
-  const newId = generateNewEmployeeId();
   let formattedDate = startDateStr ? Utilities.formatDate(new Date(startDateStr), Session.getScriptTimeZone(), 'yyyy/MM/dd') : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd');
 
   // 初期パスワードは仮PW（H列にハッシュで保存）とし、I列（PW変更要）をTRUEにする
   // 仮PWは呼び出し元の管理者への戻り値でのみ返す（ログ・シート・プロパティには残さない）
   const tempPassword = generateTempPassword_();
 
-  sheet.appendRow([newId, name, email, status, formattedDate, '', true, hashPassword_(tempPassword), true]);
-
-  if (departmentId) {
-    registerAssignment({
-      employeeId: newId, departmentId: departmentId, sectionId: sectionId || '',
-      type: '主所属', startDate: formattedDate, endDate: '9999/12/31'
-    });
-  }
+  // メールアドレスの重複確認・社員IDの採番・書き込み（主所属の登録を含む）をまとめてロックする
+  const newId = withScriptLock_(() => {
+    assertEmployeeEmailAvailable_(sheet.getDataRange().getValues(), email, '');
+    const id = generateNewEmployeeId();
+    sheet.appendRow([id, name, email, status, formattedDate, '', true, hashPassword_(tempPassword), true]);
+    if (departmentId) {
+      registerAssignment_({
+        employeeId: id, departmentId: departmentId, sectionId: sectionId || '',
+        type: '主所属', startDate: formattedDate, endDate: '9999/12/31'
+      });
+    }
+    return id;
+  });
   return { success: true, employeeId: newId, tempPassword: tempPassword };
 }
 
@@ -769,9 +786,11 @@ function generateNewDepartmentId() {
 function registerDepartment(name, sortOrder) {
   assertAdmin_();
   const sheet = getCommonSpreadsheet().getSheetByName('事業部マスタ');
-  const newId = generateNewDepartmentId();
-  sheet.appendRow([newId, name, Number(sortOrder) || 10, true]);
-  return newId;
+  return withScriptLock_(() => {
+    const newId = generateNewDepartmentId();
+    sheet.appendRow([newId, name, Number(sortOrder) || 10, true]);
+    return newId;
+  });
 }
 
 /**
@@ -832,10 +851,12 @@ function generateNewSectionId() {
 function registerSection(name, departmentId, sortOrder, startDateStr) {
   assertAdmin_();
   const sheet = getCommonSpreadsheet().getSheetByName('部署マスタ');
-  const newId = generateNewSectionId();
   let formattedDate = startDateStr ? Utilities.formatDate(new Date(startDateStr), Session.getScriptTimeZone(), 'yyyy/MM/dd') : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd');
-  sheet.appendRow([newId, name, departmentId, Number(sortOrder) || 10, formattedDate, '', true]);
-  return newId;
+  return withScriptLock_(() => {
+    const newId = generateNewSectionId();
+    sheet.appendRow([newId, name, departmentId, Number(sortOrder) || 10, formattedDate, '', true]);
+    return newId;
+  });
 }
 
 /**
@@ -884,6 +905,14 @@ function getAssignments_() {
 
 function registerAssignment(param) {
   assertAdmin_();
+  return withScriptLock_(() => registerAssignment_(param));
+}
+
+/**
+ * 所属履歴の登録（内部用。呼び出し側で管理者確認とロックの取得を済ませること）
+ * 主所属は期間の重複を拒否し、履歴IDを採番して追記する
+ */
+function registerAssignment_(param) {
   const sheet = getCommonSpreadsheet().getSheetByName('所属履歴');
   const newStart = new Date(param.startDate);
   const newEnd = param.endDate ? new Date(param.endDate) : new Date('9999/12/31');
@@ -1086,34 +1115,37 @@ function reassignPrimaryAssignment(employeeId, newDepartmentId, newSectionId, ef
   const sheet = getCommonSpreadsheet().getSheetByName('所属履歴');
   if (!sheet) throw new Error("「所属履歴」シートが見つかりません。");
 
-  const effectiveDate = new Date(effectiveDateStr);
-  const data = sheet.getDataRange().getValues();
+  // 現在の主所属の終了〜新しい主所属の採番・追記までをまとめてロックする
+  return withScriptLock_(() => {
+    const effectiveDate = new Date(effectiveDateStr);
+    const data = sheet.getDataRange().getValues();
 
-  // 現在の主所属（終了日が9999/12/31＝未設定）を探して、異動日前日を終了日として設定する
-  let currentRow = -1;
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row[1] !== employeeId || row[4] !== '主所属') continue;
-    const end = row[6] ? new Date(row[6]) : new Date('9999/12/31');
-    if (end.getFullYear() === 9999) { currentRow = i + 1; break; }
-  }
+    // 現在の主所属（終了日が9999/12/31＝未設定）を探して、異動日前日を終了日として設定する
+    let currentRow = -1;
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[1] !== employeeId || row[4] !== '主所属') continue;
+      const end = row[6] ? new Date(row[6]) : new Date('9999/12/31');
+      if (end.getFullYear() === 9999) { currentRow = i + 1; break; }
+    }
 
-  if (currentRow > 0) {
-    const prevEnd = new Date(effectiveDate);
-    prevEnd.setDate(prevEnd.getDate() - 1);
-    sheet.getRange(currentRow, 7).setValue(Utilities.formatDate(prevEnd, Session.getScriptTimeZone(), 'yyyy/MM/dd'));
-  }
+    if (currentRow > 0) {
+      const prevEnd = new Date(effectiveDate);
+      prevEnd.setDate(prevEnd.getDate() - 1);
+      sheet.getRange(currentRow, 7).setValue(Utilities.formatDate(prevEnd, Session.getScriptTimeZone(), 'yyyy/MM/dd'));
+    }
 
-  if (unassigning) {
-    return { success: true, employeeId: employeeId, unassigned: true };
-  }
+    if (unassigning) {
+      return { success: true, employeeId: employeeId, unassigned: true };
+    }
 
-  return registerAssignment({
-    employeeId: employeeId,
-    departmentId: newDepartmentId,
-    sectionId: newSectionId || '',
-    type: '主所属',
-    startDate: effectiveDateStr,
-    endDate: ''
+    return registerAssignment_({
+      employeeId: employeeId,
+      departmentId: newDepartmentId,
+      sectionId: newSectionId || '',
+      type: '主所属',
+      startDate: effectiveDateStr,
+      endDate: ''
+    });
   });
 }
