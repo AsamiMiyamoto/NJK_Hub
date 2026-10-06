@@ -250,8 +250,8 @@
         画面が切り替わらない場合は、こちらから開いてください。
         <a id="menu-fallback-link" href="#" target="_top">開く</a>
       </div>
-      <button type="button" class="btn-dest" id="portal-btn" onclick="goToSystem('jinji', this)" disabled>ポータルへ（準備中）</button>
-      <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理へ</button>
+      <button type="button" class="btn-dest" id="portal-btn" onclick="goToSystem('jinji', this)" disabled>ポータル（準備中）</button>
+      <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理</button>
       <span class="logout-link" onclick="backToLogin()">ログアウト</span>
     </div>
   </div>
@@ -371,7 +371,7 @@
     // ポータルを押せるか・準備中表示にするかはサーバー側で判定した結果に従う
     const portalBtn = document.getElementById('portal-btn');
     portalBtn.disabled = !res.portalEnabled;
-    portalBtn.textContent = res.portalPreparing ? 'ポータルへ（準備中）' : 'ポータルへ';
+    portalBtn.textContent = res.portalPreparing ? 'ポータル（準備中）' : 'ポータル';
     resetMenuMessages();
     showView('menu-view');
   }

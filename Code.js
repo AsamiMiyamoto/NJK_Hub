@@ -19,7 +19,7 @@ const ADMIN_SHEET_NAME_ = '管理者設定';
 const ADMIN_SHEET_HEADERS_ = ['メールアドレス', '追加日時', '追加者'];
 const ADMIN_HISTORY_SHEET_NAME_ = '管理者変更履歴';
 const ADMIN_HISTORY_HEADERS_ = ['日時', '操作', '対象', '実行者'];
-// メニューの「ポータルへ」（遷移先は人事評価）を準備中として管理者のみに制限する。公開時は false にする
+// メニューの「ポータル」（遷移先は人事評価）を準備中として管理者のみに制限する。公開時は false にする
 const PORTAL_ADMIN_ONLY_ = true;
 const PORTAL_SYSTEM_KEY_ = 'jinji';
 
