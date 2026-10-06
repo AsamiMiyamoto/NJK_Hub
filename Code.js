@@ -620,36 +620,6 @@ function assertEmployeeEmailAvailable_(data, email, excludeEmployeeId) {
 }
 
 /**
- * 【一時関数：GASエディタで手動実行する点検用・読み取り専用】
- * 社員マスタのメールアドレス（C列）について、大文字・前後の空白を含むものと、
- * 小文字化すると重複するもの（退職者を含む）をログに出す。シートは書き換えない。点検が済んだら削除する。
- */
-function auditEmployeeEmails() {
-  assertAdmin_();
-  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
-  if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
-  const data = sheet.getDataRange().getValues();
-
-  const notNormalized = [];
-  const byEmail = {};
-  for (let i = 1; i < data.length; i++) {
-    const empId = String(data[i][0] || '');
-    const raw = String(data[i][2] || '');
-    const email = normalizeEmail_(raw);
-    if (!empId && !raw) continue;
-    if (raw !== email) notNormalized.push(empId + ' (' + (i + 1) + '行目): "' + raw + '"');
-    if (!email) continue;
-    if (!byEmail[email]) byEmail[email] = [];
-    byEmail[email].push(empId + '(' + (data[i][3] || '') + ')');
-  }
-  const duplicates = Object.keys(byEmail).filter(k => byEmail[k].length > 1).map(k => k + ' → ' + byEmail[k].join(', '));
-
-  Logger.log('点検対象 ' + (data.length - 1) + ' 行');
-  Logger.log('大文字・前後の空白を含む: ' + notNormalized.length + ' 件' + (notNormalized.length ? '\n' + notNormalized.join('\n') : ''));
-  Logger.log('小文字化すると重複: ' + duplicates.length + ' 件' + (duplicates.length ? '\n' + duplicates.join('\n') : ''));
-}
-
-/**
  * 在籍状況の値の検証（在籍／休職／退職 以外は例外）
  */
 function assertEmployeeStatus_(status) {
