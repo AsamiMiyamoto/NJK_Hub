@@ -19,6 +19,10 @@ const ADMIN_SHEET_NAME_ = '管理者設定';
 const ADMIN_SHEET_HEADERS_ = ['メールアドレス', '追加日時', '追加者'];
 const ADMIN_HISTORY_SHEET_NAME_ = '管理者変更履歴';
 const ADMIN_HISTORY_HEADERS_ = ['日時', '操作', '対象', '実行者'];
+// メニューの「ポータルへ」（遷移先は人事評価）を準備中として管理者のみに制限する。公開時は false にする
+const PORTAL_ADMIN_ONLY_ = true;
+const PORTAL_SYSTEM_KEY_ = 'jinji';
+
 // 先頭は英数字に限る（=・+・- で始まる値はシートで数式として扱われるため）
 const ADMIN_EMAIL_PATTERN_ = /^[a-z0-9][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}$/;
 
@@ -106,6 +110,14 @@ function assertAdmin_() {
   const email = getActiveUserEmail_();
   if (!isAdmin_(email)) throw new Error("管理者権限がありません。");
   return email;
+}
+
+/**
+ * 共通基盤メニューから遷移先システムを利用できるか（ポータルは準備中の間、管理者のみ）
+ */
+function canUseSystem_(systemKey) {
+  if (PORTAL_ADMIN_ONLY_ && systemKey === PORTAL_SYSTEM_KEY_) return isAdmin_(getActiveUserEmail_());
+  return true;
 }
 
 /**
@@ -346,7 +358,9 @@ function buildLoginResult_(emp, sessionCreatedAt) {
     name: emp.name,
     departmentName: emp.departmentName,
     sectionName: emp.sectionName,
-    sessionId: createSession_(emp.empId, sessionCreatedAt)
+    sessionId: createSession_(emp.empId, sessionCreatedAt),
+    portalEnabled: canUseSystem_(PORTAL_SYSTEM_KEY_),
+    portalPreparing: PORTAL_ADMIN_ONLY_
   };
 }
 
@@ -430,8 +444,12 @@ function createSession_(employeeId, createdAt) {
 /**
  * ログインセッションから遷移用SSOトークンを都度発行する
  * 社員の状態（有効・退職・PW変更要・セッション作成後のPW変更）を毎回確認し、NGならセッションも破棄する
+ * 遷移先が利用できない（準備中のポータルを管理者以外が開こうとした）場合は、セッションを残したまま
+ * { success: false, error } を返す
+ * @param {string} sessionId ログインセッションID
+ * @param {string} systemKey 遷移先システム（login.html の SYSTEM_URLS のキー）
  */
-function issueSsoTokenForSession(sessionId) {
+function issueSsoTokenForSession(sessionId, systemKey) {
   const expiredMsg = "セッションの有効期限が切れました。再度ログインしてください。";
   if (!sessionId || String(sessionId).indexOf(SESSION_PREFIX_) !== 0) throw new Error(expiredMsg);
 
@@ -444,6 +462,9 @@ function issueSsoTokenForSession(sessionId) {
   if (!isActiveEmployee_(emp) || emp.mustChangePassword || session.createdAt < emp.pwChangedAt) {
     cache.remove(sessionId);
     throw new Error("アカウントの状態が変更されました。再度ログインしてください。");
+  }
+  if (!canUseSystem_(systemKey)) {
+    return { success: false, error: "このメニューは準備中のため、現在は管理者のみ利用できます。" };
   }
   return generateSsoToken_(emp);
 }

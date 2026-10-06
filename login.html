@@ -250,7 +250,7 @@
         画面が切り替わらない場合は、こちらから開いてください。
         <a id="menu-fallback-link" href="#" target="_top">開く</a>
       </div>
-      <button type="button" class="btn-dest" onclick="goToSystem('jinji', this)">ポータルへ</button>
+      <button type="button" class="btn-dest" id="portal-btn" onclick="goToSystem('jinji', this)" disabled>ポータルへ（準備中）</button>
       <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理へ</button>
       <span class="logout-link" onclick="backToLogin()">ログアウト</span>
     </div>
@@ -368,6 +368,10 @@
     document.getElementById('menu-name').textContent = res.name + ' さん';
     document.getElementById('menu-org').textContent =
       [res.departmentName, res.sectionName].filter(v => v && v !== '-' && v !== '(部署なし)').join(' / ') || '所属なし';
+    // ポータルを押せるか・準備中表示にするかはサーバー側で判定した結果に従う
+    const portalBtn = document.getElementById('portal-btn');
+    portalBtn.disabled = !res.portalEnabled;
+    portalBtn.textContent = res.portalPreparing ? 'ポータルへ（準備中）' : 'ポータルへ';
     resetMenuMessages();
     showView('menu-view');
   }
@@ -415,6 +419,12 @@
     google.script.run
       .withSuccessHandler(res => {
         btn.disabled = false;
+        if (!res || !res.token) {
+          // 利用できない遷移先と判定された場合は、ボタンも押せない状態に戻す
+          if (res && res.error) btn.disabled = true;
+          showMenuError((res && res.error) || '遷移用のトークンを発行できませんでした。');
+          return;
+        }
         const url = targetUrl + '?sso_token=' + encodeURIComponent(res.token);
         navFallbackTimer = setTimeout(() => showNavFallback(url), NAV_FALLBACK_DELAY_MS);
         try {
@@ -431,7 +441,7 @@
         alert(err.message);
         backToLogin();
       })
-      .issueSsoTokenForSession(sessionId);
+      .issueSsoTokenForSession(sessionId, key);
   }
 
   function backToLogin() {
