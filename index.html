@@ -662,6 +662,21 @@
       [fnName]();
   }
 
+  // データをHTMLに埋め込む前のエスケープ（GASの配信時の都合で正規表現は使わない）
+  function escapeHtml_(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .split('&').join('&amp;')
+      .split('<').join('&lt;')
+      .split('>').join('&gt;')
+      .split('"').join('&quot;')
+      .split("'").join('&#39;');
+  }
+
+  // 「ID : 名称」の選択肢（事業部・部署）
+  function idNameOption_(item) {
+    return '<option value="' + escapeHtml_(item.id) + '">' + escapeHtml_(item.id) + ' : ' + escapeHtml_(item.name) + '</option>';
+  }
+
   function showLoadError_(message) {
     const box = document.getElementById('load-error');
     box.textContent = (box.textContent ? box.textContent + '\n' : '') + message;
@@ -684,20 +699,21 @@
     }
     data.forEach(emp => {
       const badgeClass = emp.isValid === '有効' ? 'badge-active' : 'badge-inactive';
+      const id = escapeHtml_(emp.empId);
       tbody.innerHTML += `
         <tr>
-          <td>${emp.empId}</td>
-          <td>${emp.name}</td>
-          <td>${emp.email}</td>
-          <td>${emp.departmentName}</td>
-          <td>${emp.sectionName}</td>
-          <td>${emp.status === '休職' ? '<span class="badge badge-leave">休職</span>' : emp.status}</td>
-          <td>${emp.startDate}</td>
-          <td><span class="badge ${badgeClass}">${emp.isValid}</span></td>
+          <td>${id}</td>
+          <td>${escapeHtml_(emp.name)}</td>
+          <td>${escapeHtml_(emp.email)}</td>
+          <td>${escapeHtml_(emp.departmentName)}</td>
+          <td>${escapeHtml_(emp.sectionName)}</td>
+          <td>${emp.status === '休職' ? '<span class="badge badge-leave">休職</span>' : escapeHtml_(emp.status)}</td>
+          <td>${escapeHtml_(emp.startDate)}</td>
+          <td><span class="badge ${badgeClass}">${escapeHtml_(emp.isValid)}</span></td>
           <td>
-            <button class="btn-secondary btn-sm" onclick="openEmployeeEditModal('${emp.empId}')">編集</button>
-            <button class="btn-secondary btn-sm" onclick="openSsoModal('${emp.empId}', '${emp.name}')">SSOログイン</button>
-            <button class="btn-danger btn-sm" onclick="resetEmployeePassword('${emp.empId}', this)">PWリセット</button>
+            <button class="btn-secondary btn-sm" data-emp-id="${id}" onclick="openEmployeeEditModal(this.dataset.empId)">編集</button>
+            <button class="btn-secondary btn-sm" data-emp-id="${id}" onclick="openSsoModal(this.dataset.empId)">SSOログイン</button>
+            <button class="btn-danger btn-sm" data-emp-id="${id}" onclick="resetEmployeePassword(this.dataset.empId, this)">PWリセット</button>
           </td>
         </tr>
       `;
@@ -791,11 +807,11 @@
     data.forEach(dept => {
       tbody.innerHTML += `
         <tr>
-          <td>${dept.id}</td>
-          <td>${dept.name}</td>
-          <td>${dept.sortOrder}</td>
+          <td>${escapeHtml_(dept.id)}</td>
+          <td>${escapeHtml_(dept.name)}</td>
+          <td>${escapeHtml_(dept.sortOrder)}</td>
           <td><span class="badge ${dept.active ? 'badge-active' : 'badge-inactive'}">${dept.active ? '有効' : '無効'}</span></td>
-          <td><button class="btn-secondary btn-sm" onclick="openDepartmentEditModal('${dept.id}')">編集</button></td>
+          <td><button class="btn-secondary btn-sm" data-id="${escapeHtml_(dept.id)}" onclick="openDepartmentEditModal(this.dataset.id)">編集</button></td>
         </tr>
       `;
     });
@@ -812,13 +828,13 @@
     data.forEach(sec => {
       tbody.innerHTML += `
         <tr>
-          <td>${sec.id}</td>
-          <td>${sec.name}</td>
-          <td>${sec.departmentId}</td>
-          <td>${sec.sortOrder}</td>
-          <td>${sec.startDate}</td>
+          <td>${escapeHtml_(sec.id)}</td>
+          <td>${escapeHtml_(sec.name)}</td>
+          <td>${escapeHtml_(sec.departmentId)}</td>
+          <td>${escapeHtml_(sec.sortOrder)}</td>
+          <td>${escapeHtml_(sec.startDate)}</td>
           <td><span class="badge ${sec.active ? 'badge-active' : 'badge-inactive'}">${sec.active ? '有効' : '無効'}</span></td>
-          <td><button class="btn-secondary btn-sm" onclick="openSectionEditModal('${sec.id}')">編集</button></td>
+          <td><button class="btn-secondary btn-sm" data-id="${escapeHtml_(sec.id)}" onclick="openSectionEditModal(this.dataset.id)">編集</button></td>
         </tr>
       `;
     });
@@ -833,7 +849,7 @@
   function openEmployeeModal() {
     const deptSelect = document.getElementById('emp-dept-id');
     deptSelect.innerHTML = '<option value="">-- 未選択 --</option>' + 
-      cachedDepartments.filter(d => d.active).map(d => `<option value="${d.id}">${d.id} : ${d.name}</option>`).join('');
+      cachedDepartments.filter(d => d.active).map(idNameOption_).join('');
     updateEmployeeSectionDropdown();
     document.getElementById('employee-modal').style.display = 'flex';
   }
@@ -843,7 +859,7 @@
     const secSelect = document.getElementById('emp-sec-id');
     const filteredSections = deptId ? cachedSections.filter(s => s.active && s.departmentId === deptId) : [];
     secSelect.innerHTML = '<option value="">-- 未選択 --</option>' +
-      filteredSections.map(s => `<option value="${s.id}">${s.id} : ${s.name}</option>`).join('');
+      filteredSections.map(idNameOption_).join('');
   }
 
   function closeEmployeeModal() {
@@ -898,7 +914,7 @@
   // モーダル：部署
   function openSectionModal() {
     const deptSelect = document.getElementById('sec-dept-id');
-    deptSelect.innerHTML = cachedDepartments.filter(d => d.active).map(d => `<option value="${d.id}">${d.id} : ${d.name}</option>`).join('');
+    deptSelect.innerHTML = cachedDepartments.filter(d => d.active).map(idNameOption_).join('');
     document.getElementById('section-modal').style.display = 'flex';
   }
   function closeSectionModal() { document.getElementById('section-modal').style.display = 'none'; document.getElementById('section-form').reset(); }
@@ -976,7 +992,7 @@
     document.getElementById('sec-edit-id').value = sec.id;
     document.getElementById('sec-edit-name').value = sec.name;
     document.getElementById('sec-edit-dept-id').innerHTML =
-      cachedDepartments.map(d => `<option value="${d.id}">${d.id} : ${d.name}</option>`).join('');
+      cachedDepartments.map(idNameOption_).join('');
     document.getElementById('sec-edit-dept-id').value = sec.departmentId;
     document.getElementById('sec-edit-sort').value = sec.sortOrder;
     if (sec.startDate && sec.startDate !== '-') {
@@ -1037,7 +1053,7 @@
 
     const deptOptions = cachedDepartments.filter(d => d.active || d.id === emp.departmentId);
     document.getElementById('emp-edit-dept-id').innerHTML = '<option value="">-- 未選択 --</option>' +
-      deptOptions.map(d => `<option value="${d.id}">${d.id} : ${d.name}</option>`).join('');
+      deptOptions.map(idNameOption_).join('');
     document.getElementById('emp-edit-dept-id').value = emp.departmentId || '';
     updateEmployeeEditSectionDropdown(emp.sectionId);
 
@@ -1048,7 +1064,7 @@
 
     renderConcurrentList(emp.concurrentAssignments);
     document.getElementById('emp-edit-concurrent-dept').innerHTML = '<option value="">-- 選択 --</option>' +
-      cachedDepartments.filter(d => d.active).map(d => `<option value="${d.id}">${d.id} : ${d.name}</option>`).join('');
+      cachedDepartments.filter(d => d.active).map(idNameOption_).join('');
     document.getElementById('emp-edit-concurrent-sec').innerHTML = '<option value="">-- 選択 --</option>';
     document.getElementById('emp-edit-concurrent-date').valueAsDate = new Date();
 
@@ -1077,7 +1093,7 @@
     const secOptions = deptId ? cachedSections.filter(s => (s.active || s.id === selectedSecId) && s.departmentId === deptId) : [];
     const secSelect = document.getElementById('emp-edit-sec-id');
     secSelect.innerHTML = '<option value="">-- 未選択 --</option>' +
-      secOptions.map(s => `<option value="${s.id}">${s.id} : ${s.name}</option>`).join('');
+      secOptions.map(idNameOption_).join('');
     if (selectedSecId) secSelect.value = selectedSecId;
     checkEmployeeEditReassignNeeded();
   }
@@ -1089,7 +1105,7 @@
       return;
     }
     container.innerHTML = list.map(c =>
-      `<div><span class="badge badge-sub">兼務</span> ${c.departmentName} / ${c.sectionName}</div>`
+      `<div><span class="badge badge-sub">兼務</span> ${escapeHtml_(c.departmentName)} / ${escapeHtml_(c.sectionName)}</div>`
     ).join('');
   }
 
@@ -1098,7 +1114,7 @@
     const secSelect = document.getElementById('emp-edit-concurrent-sec');
     const filtered = cachedSections.filter(s => s.active && (!deptId || s.departmentId === deptId));
     secSelect.innerHTML = '<option value="">-- 選択 --</option>' +
-      filtered.map(s => `<option value="${s.id}">${s.id} : ${s.name}</option>`).join('');
+      filtered.map(idNameOption_).join('');
   }
 
   function addConcurrentAssignment() {
@@ -1210,9 +1226,10 @@
   }
 
   // モーダル：SSOログイン
-  function openSsoModal(empId, name) {
+  function openSsoModal(empId) {
+    const emp = cachedEmployees.find(e => e.empId === empId);
     selectedSsoEmpId = empId;
-    document.getElementById('sso-emp-info').value = empId + ' : ' + name;
+    document.getElementById('sso-emp-info').value = empId + ' : ' + (emp ? emp.name : '');
     document.getElementById('sso-modal').style.display = 'flex';
   }
 
