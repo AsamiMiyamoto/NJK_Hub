@@ -247,6 +247,7 @@
     <li class="nav-tab active" onclick="switchTab('employee-tab', this)">社員マスタ</li>
     <li class="nav-tab" onclick="switchTab('department-tab', this)">事業部マスタ</li>
     <li class="nav-tab" onclick="switchTab('section-tab', this)">部署マスタ</li>
+    <li class="nav-tab" onclick="switchTab('admin-tab', this)">管理者設定</li>
   </ul>
 
   <!-- 1. 社員マスタ -->
@@ -318,6 +319,30 @@
         </tr>
       </thead>
       <tbody id="section-list"></tbody>
+    </table>
+  </div>
+
+  <!-- 4. 管理者設定 -->
+  <div id="admin-tab" class="tab-content">
+    <div class="action-bar">
+      <h3>管理者一覧</h3>
+      <form id="admin-add-form" onsubmit="handleAdminAdd(event)" style="display:flex; gap:8px; align-items:center;">
+        <input type="email" id="admin-add-email" placeholder="name@j-shelter.com" required autocomplete="off"
+          style="width:260px; padding:8px; box-sizing:border-box; border:1px solid var(--input-border); border-radius:4px;">
+        <button type="submit" class="btn-primary" id="admin-add-btn">＋ 管理者を追加</button>
+      </form>
+    </div>
+    <p style="font-size:13px; color:var(--text-muted); margin:0 0 8px;">登録できるのは @j-shelter.com のアカウントのみです。固定管理者と、ログイン中の自分自身は削除できません。</p>
+    <table>
+      <thead>
+        <tr>
+          <th>メールアドレス</th>
+          <th>追加日時</th>
+          <th>追加者</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="admin-list"></tbody>
     </table>
   </div>
 </div>
@@ -624,6 +649,7 @@
     document.getElementById('emp-start-date').valueAsDate = new Date();
     document.getElementById('sec-start-date').valueAsDate = new Date();
     loadAllMasterData();
+    loadAdmins();
   };
 
   function switchTab(tabId, tabElement) {
@@ -697,6 +723,82 @@
         </tr>
       `;
     });
+  }
+
+  // 管理者設定（メールアドレスはシートを直接編集される場合もあるため、innerHTML ではなく textContent で表示する）
+  function loadAdmins() {
+    if (typeof google === 'undefined' || !google.script) return;
+    loadMaster_('管理者', 'getAdmins', renderAdminTable);
+  }
+
+  function renderAdminTable(data) {
+    const tbody = document.getElementById('admin-list');
+    tbody.innerHTML = '';
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4">データがありません</td></tr>';
+      return;
+    }
+    data.forEach(admin => {
+      const tr = document.createElement('tr');
+      const emailTd = document.createElement('td');
+      emailTd.textContent = admin.email + ' ';
+      if (admin.fixed) emailTd.appendChild(makeBadge_('固定', 'badge-main'));
+      if (admin.self) emailTd.appendChild(makeBadge_('ログイン中', 'badge-active'));
+      tr.appendChild(emailTd);
+      [admin.addedAt || '-', admin.addedBy || '-'].forEach(text => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      const opTd = document.createElement('td');
+      if (admin.fixed || admin.self) {
+        opTd.textContent = '削除不可';
+        opTd.style.color = 'var(--text-muted)';
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'btn-danger btn-sm';
+        btn.textContent = '削除';
+        btn.addEventListener('click', () => handleAdminRemove(admin.email, btn));
+        opTd.appendChild(btn);
+      }
+      tr.appendChild(opTd);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function makeBadge_(text, badgeClass) {
+    const span = document.createElement('span');
+    span.className = 'badge ' + badgeClass;
+    span.textContent = text;
+    return span;
+  }
+
+  function handleAdminAdd(e) {
+    e.preventDefault();
+    const input = document.getElementById('admin-add-email');
+    const btn = document.getElementById('admin-add-btn');
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(res => {
+        alert('管理者に追加しました: ' + res.email);
+        btn.disabled = false;
+        input.value = '';
+        loadAdmins();
+      })
+      .withFailureHandler(err => { alert('追加失敗: ' + err.message); btn.disabled = false; })
+      .addAdmin(input.value);
+  }
+
+  function handleAdminRemove(email, btn) {
+    if (!confirm(email + ' を管理者から削除します。\n管理画面を利用できなくなりますが、よろしいですか？')) return;
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(() => {
+        alert('管理者から削除しました: ' + email);
+        loadAdmins();
+      })
+      .withFailureHandler(err => { alert('削除失敗: ' + err.message); btn.disabled = false; })
+      .removeAdmin(email);
   }
 
   function renderDepartmentTable(data) {

@@ -11,8 +11,16 @@ function getCommonSpreadsheet() {
   return ss;
 }
 
-// 管理画面へのアクセスを許可するGoogleアカウント一覧
-const ADMIN_ALLOWED_EMAILS_ = ['admin@j-shelter.com'];
+// 管理画面へのアクセスを許可する固定管理者（コード上で固定し、画面からは削除できない）。
+// それ以外の管理者はデータSSの「管理者設定」タブで管理する
+const FIXED_ADMIN_EMAILS_ = ['admin@j-shelter.com'];
+const ADMIN_EMAIL_DOMAIN_ = '@j-shelter.com';
+const ADMIN_SHEET_NAME_ = '管理者設定';
+const ADMIN_SHEET_HEADERS_ = ['メールアドレス', '追加日時', '追加者'];
+const ADMIN_HISTORY_SHEET_NAME_ = '管理者変更履歴';
+const ADMIN_HISTORY_HEADERS_ = ['日時', '操作', '対象', '実行者'];
+// 先頭は英数字に限る（=・+・- で始まる値はシートで数式として扱われるため）
+const ADMIN_EMAIL_PATTERN_ = /^[a-z0-9][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}$/;
 
 // 社員マスタの列番号（1始まり）
 const EMP_COL_PASSWORD_ = 8;     // H列：パスワード
@@ -38,19 +46,151 @@ const AUTH_FAIL_TTL_SEC_ = 900;
 const TEMP_PW_LENGTH_ = 12;
 const TEMP_PW_CHARS_ = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 
-function isAdmin_() {
-  return ADMIN_ALLOWED_EMAILS_.indexOf(Session.getActiveUser().getEmail()) !== -1;
+// ----------------------------------------------------
+// 管理者判定・管理者設定
+// ----------------------------------------------------
+
+function normalizeEmail_(email) {
+  return String(email || '').trim().toLowerCase();
 }
 
+function getActiveUserEmail_() {
+  return normalizeEmail_(Session.getActiveUser().getEmail());
+}
+
+function isFixedAdmin_(email) {
+  return FIXED_ADMIN_EMAILS_.indexOf(normalizeEmail_(email)) !== -1;
+}
+
+/**
+ * タブを取得する。無ければ見出し付きで作成する
+ */
+function getOrCreateSheet_(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/**
+ * 管理者設定タブの登録行（見出しを除く、メールアドレスは小文字化済み）。空行は除く
+ */
+function readAdminRows_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, ADMIN_SHEET_HEADERS_.length).getValues()
+    .map((r, i) => ({ rowNumber: i + 2, email: normalizeEmail_(r[0]), addedAt: r[1], addedBy: r[2] }))
+    .filter(r => r.email);
+}
+
+/**
+ * 管理者か判定する（固定管理者 ∪ 管理者設定タブ）。
+ * 管理者設定タブはシートを直接編集されることもあるため、@j-shelter.com 以外の行は無視する。
+ * 判定の都度タブを読むため、追加・削除はすぐに反映される。
+ */
+function isAdmin_(email) {
+  const target = normalizeEmail_(email);
+  if (!target) return false;
+  if (isFixedAdmin_(target)) return true;
+  if (!target.endsWith(ADMIN_EMAIL_DOMAIN_)) return false;
+  const sheet = getCommonSpreadsheet().getSheetByName(ADMIN_SHEET_NAME_);
+  return readAdminRows_(sheet).some(r => r.email === target);
+}
+
+/**
+ * 実行中のGoogleアカウントが管理者でなければ拒否する。管理者ならそのメールアドレス（小文字化済み）を返す
+ */
 function assertAdmin_() {
-  if (!isAdmin_()) throw new Error("管理者権限がありません。");
+  const email = getActiveUserEmail_();
+  if (!isAdmin_(email)) throw new Error("管理者権限がありません。");
+  return email;
+}
+
+/**
+ * 管理者の追加・削除を管理者変更履歴タブに記録する
+ */
+function recordAdminChange_(ss, operation, targetEmail, actorEmail) {
+  getOrCreateSheet_(ss, ADMIN_HISTORY_SHEET_NAME_, ADMIN_HISTORY_HEADERS_)
+    .appendRow([new Date(), operation, targetEmail, actorEmail]);
+}
+
+/**
+ * 管理者一覧（固定管理者を先頭に、削除不可の印 fixed を付ける。self は実行中のアカウント）
+ * @return {Array<{email: string, addedAt: string, addedBy: string, fixed: boolean, self: boolean}>}
+ */
+function getAdmins() {
+  const me = assertAdmin_();
+  const sheet = getOrCreateSheet_(getCommonSpreadsheet(), ADMIN_SHEET_NAME_, ADMIN_SHEET_HEADERS_);
+  const tz = Session.getScriptTimeZone();
+  const fixed = FIXED_ADMIN_EMAILS_.map(email => ({ email: email, addedAt: '', addedBy: '', fixed: true, self: email === me }));
+  const registered = readAdminRows_(sheet).map(r => ({
+    email: r.email,
+    addedAt: r.addedAt instanceof Date ? Utilities.formatDate(r.addedAt, tz, 'yyyy/MM/dd HH:mm') : String(r.addedAt || ''),
+    addedBy: String(r.addedBy || ''),
+    fixed: false,
+    self: r.email === me
+  }));
+  return fixed.concat(registered);
+}
+
+/**
+ * 管理者を追加する（@j-shelter.com のみ。固定管理者・登録済みとの重複は拒否）
+ */
+function addAdmin(email) {
+  const me = assertAdmin_();
+  const target = normalizeEmail_(email);
+  if (!target) throw new Error("メールアドレスを入力してください。");
+  if (!ADMIN_EMAIL_PATTERN_.test(target)) throw new Error("メールアドレスの形式が正しくありません。");
+  if (!target.endsWith(ADMIN_EMAIL_DOMAIN_)) throw new Error("管理者に登録できるのは " + ADMIN_EMAIL_DOMAIN_ + " のアカウントのみです。");
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = getCommonSpreadsheet();
+    const sheet = getOrCreateSheet_(ss, ADMIN_SHEET_NAME_, ADMIN_SHEET_HEADERS_);
+    if (isFixedAdmin_(target) || readAdminRows_(sheet).some(r => r.email === target)) {
+      throw new Error("すでに管理者として登録されています: " + target);
+    }
+    sheet.appendRow([target, new Date(), me]);
+    recordAdminChange_(ss, '追加', target, me);
+  } finally {
+    lock.releaseLock();
+  }
+  return { success: true, email: target };
+}
+
+/**
+ * 管理者を削除する（固定管理者・自分自身は拒否）
+ */
+function removeAdmin(email) {
+  const me = assertAdmin_();
+  const target = normalizeEmail_(email);
+  if (isFixedAdmin_(target)) throw new Error("固定管理者は削除できません。");
+  if (target === me) throw new Error("自分自身は削除できません。");
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = getCommonSpreadsheet();
+    const sheet = getOrCreateSheet_(ss, ADMIN_SHEET_NAME_, ADMIN_SHEET_HEADERS_);
+    const rows = readAdminRows_(sheet).filter(r => r.email === target);
+    if (rows.length === 0) throw new Error("指定された管理者が見つかりません: " + target);
+    // 下の行から削除して行番号のずれを防ぐ（重複行があればまとめて削除）
+    rows.map(r => r.rowNumber).sort((a, b) => b - a).forEach(n => sheet.deleteRow(n));
+    recordAdminChange_(ss, '削除', target, me);
+  } finally {
+    lock.releaseLock();
+  }
+  return { success: true, email: target };
 }
 
 function doGet(e) {
   const isAdminRequest = e && e.parameter && e.parameter.admin === 'true';
 
   if (isAdminRequest) {
-    if (!isAdmin_()) {
+    if (!isAdmin_(getActiveUserEmail_())) {
       return HtmlService.createHtmlOutput(
         '<div style="font-family: sans-serif; padding: 40px; text-align:center; color:#555;">' +
         '<h2>アクセス権がありません</h2>' +
