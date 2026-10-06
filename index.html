@@ -6,13 +6,42 @@
   <title>NJK社内システム 共通基盤管理画面</title>
   <style>
     :root {
-      --primary-color: #0056b3;
-      --primary-hover: #004494;
-      --bg-color: #f0f4f8;
+      /* 配色は戦略AP（NJK_APGAS）に合わせる */
+      --primary-color: #6842c2;
+      --primary-hover: #4a2f84;
+      --primary-disabled: #bdaee2;
+      --accent-color: #8b6ce3;
+      --header-color: #6b4fbb;
+      --on-primary: #ffffff;
+      --bg-color: #f7f6fb;
       --card-bg: #ffffff;
-      --text-color: #333333;
-      --border-color: #cccccc;
-      --active-tab-bg: #e2e8f0;
+      --text-color: #26364a;
+      --text-muted: #6b7280;
+      --text-disabled: #9aa4ae;
+      --border-color: #dfe5eb;
+      --input-border: #cfd7df;
+      --active-tab-bg: #f2effb;
+      --soft-bg: #f2effb;
+      --readonly-bg: #f7f8fa;
+      --link-color: #513a97;
+      --secondary-color: #6b7280;
+      --danger-color: #b42318;
+      --danger-bg: #fff0ee;
+      --success-color: #2f6f57;
+      --success-bg: #f3f6f4;
+      --warn-color: #a45d20;
+      --warn-bg: #fff5e9;
+      --warn-border: #e7d99b;
+      --info-color: #235b9a;
+      --info-bg: #edf5ff;
+      --chip-color: #6842c2;
+      --chip-bg: #eee8fb;
+      --table-head-bg: #fbfcfd;
+      --table-head-color: #687483;
+      --table-border: #edf0f3;
+      --table-stripe-bg: #fafbfc;
+      --shadow-color: #00000014;
+      --overlay-color: #0006;
     }
 
     body {
@@ -28,12 +57,12 @@
       margin: 0 auto;
       background: var(--card-bg);
       border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px var(--shadow-color);
       padding: 24px;
     }
 
     header {
-      border-bottom: 2px solid var(--primary-color);
+      border-bottom: 2px solid var(--header-color);
       padding-bottom: 12px;
       margin-bottom: 20px;
     }
@@ -41,7 +70,7 @@
     h2 {
       font-size: 22px;
       margin: 0;
-      color: var(--primary-color);
+      color: var(--header-color);
     }
 
     .nav-tabs {
@@ -56,20 +85,20 @@
       padding: 10px 20px;
       cursor: pointer;
       font-weight: bold;
-      color: #555555;
+      color: var(--text-muted);
       border: 1px solid transparent;
       border-bottom: none;
       border-radius: 4px 4px 0 0;
       margin-right: 4px;
     }
 
-    .nav-tab:hover { background-color: #e9ecef; }
+    .nav-tab:hover { background-color: var(--soft-bg); }
 
     .nav-tab.active {
       color: var(--primary-color);
       background-color: var(--active-tab-bg);
       border-color: var(--border-color);
-      border-bottom: 2px solid var(--primary-color);
+      border-bottom: 2px solid var(--accent-color);
     }
 
     .tab-content { display: none; }
@@ -84,7 +113,7 @@
 
     .btn-primary {
       background-color: var(--primary-color);
-      color: white;
+      color: var(--on-primary);
       border: none;
       padding: 8px 16px;
       border-radius: 4px;
@@ -101,8 +130,8 @@
     }
 
     .btn-secondary {
-      background-color: #6c757d;
-      color: white;
+      background-color: var(--secondary-color);
+      color: var(--on-primary);
       border: none;
       padding: 8px 16px;
       border-radius: 4px;
@@ -110,8 +139,8 @@
     }
 
     .btn-danger {
-      background-color: #dc3545;
-      color: white;
+      background-color: var(--danger-color);
+      color: var(--on-primary);
       border: none;
       border-radius: 4px;
       padding: 4px 10px;
@@ -126,19 +155,19 @@
     }
 
     th, td {
-      border: 1px solid #dddddd;
+      border: 1px solid var(--table-border);
       padding: 10px 12px;
       text-align: left;
       font-size: 14px;
     }
 
     th {
-      background-color: #e2e8f0;
-      color: #2c3e50;
+      background-color: var(--table-head-bg);
+      color: var(--table-head-color);
       font-weight: bold;
     }
 
-    tr:nth-child(even) { background-color: #f8fafc; }
+    tr:nth-child(even) { background-color: var(--table-stripe-bg); }
 
     .badge {
       padding: 3px 8px;
@@ -146,24 +175,24 @@
       font-size: 12px;
       font-weight: bold;
     }
-    .badge-active { background-color: #d4edda; color: #155724; }
-    .badge-inactive { background-color: #f8d7da; color: #721c24; }
-    .badge-main { background-color: #cce5ff; color: #004085; }
-    .badge-sub { background-color: #fff3cd; color: #856404; }
-    .badge-leave { background-color: #e2e3f5; color: #383d7c; }
+    .badge-active { background-color: var(--success-bg); color: var(--success-color); }
+    .badge-inactive { background-color: var(--danger-bg); color: var(--danger-color); }
+    .badge-main { background-color: var(--info-bg); color: var(--info-color); }
+    .badge-sub { background-color: var(--warn-bg); color: var(--warn-color); }
+    .badge-leave { background-color: var(--chip-bg); color: var(--chip-color); }
 
     .modal {
       display: none;
       position: fixed;
       z-index: 1000;
       left: 0; top: 0; width: 100%; height: 100%;
-      background-color: rgba(0,0,0,0.5);
+      background-color: var(--overlay-color);
       justify-content: center;
       align-items: center;
     }
 
     .modal-content {
-      background: white;
+      background: var(--card-bg);
       padding: 24px;
       border-radius: 8px;
       width: 450px;
@@ -183,7 +212,7 @@
       width: 100%;
       padding: 8px;
       box-sizing: border-box;
-      border: 1px solid #ccc;
+      border: 1px solid var(--input-border);
       border-radius: 4px;
     }
 
@@ -196,8 +225,8 @@
     }
 
     .warning-box {
-      color: #721c24;
-      background: #f8d7da;
+      color: var(--danger-color);
+      background: var(--danger-bg);
       padding: 8px 12px;
       border-radius: 4px;
       font-size: 13px;
@@ -299,11 +328,11 @@
     <h3>新規社員登録</h3>
     <form id="employee-form" onsubmit="handleEmployeeSubmit(event)">
       <div class="form-group">
-        <label>氏名 <span style="color:red">*</span></label>
+        <label>氏名 <span style="color:var(--danger-color)">*</span></label>
         <input type="text" id="emp-name" required placeholder="例：共通 太郎">
       </div>
       <div class="form-group">
-        <label>メールアドレス <span style="color:red">*</span></label>
+        <label>メールアドレス <span style="color:var(--danger-color)">*</span></label>
         <input type="email" id="emp-email" required placeholder="例：taro@example.com">
       </div>
       <div class="form-group">
@@ -339,7 +368,7 @@
     <h3>新規事業部登録</h3>
     <form id="department-form" onsubmit="handleDepartmentSubmit(event)">
       <div class="form-group">
-        <label>事業部名 <span style="color:red">*</span></label>
+        <label>事業部名 <span style="color:var(--danger-color)">*</span></label>
         <input type="text" id="dept-name" required placeholder="例：DX推進本部">
       </div>
       <div class="form-group">
@@ -360,11 +389,11 @@
     <h3>新規部署登録</h3>
     <form id="section-form" onsubmit="handleSectionSubmit(event)">
       <div class="form-group">
-        <label>部署名 <span style="color:red">*</span></label>
+        <label>部署名 <span style="color:var(--danger-color)">*</span></label>
         <input type="text" id="sec-name" required placeholder="例：システム開発部">
       </div>
       <div class="form-group">
-        <label>所属事業部 <span style="color:red">*</span></label>
+        <label>所属事業部 <span style="color:var(--danger-color)">*</span></label>
         <select id="sec-dept-id" required></select>
       </div>
       <div class="form-group">
@@ -390,10 +419,10 @@
     <form id="department-edit-form" onsubmit="handleDepartmentEditSubmit(event)">
       <div class="form-group">
         <label>事業部ID</label>
-        <input type="text" id="dept-edit-id" readonly style="background-color: #f0f0f0;">
+        <input type="text" id="dept-edit-id" readonly style="background-color: var(--readonly-bg);">
       </div>
       <div class="form-group">
-        <label>事業部名 <span style="color:red">*</span></label>
+        <label>事業部名 <span style="color:var(--danger-color)">*</span></label>
         <input type="text" id="dept-edit-name" required>
       </div>
       <div class="form-group">
@@ -421,14 +450,14 @@
     <form id="section-edit-form" onsubmit="handleSectionEditSubmit(event)">
       <div class="form-group">
         <label>部署ID</label>
-        <input type="text" id="sec-edit-id" readonly style="background-color: #f0f0f0;">
+        <input type="text" id="sec-edit-id" readonly style="background-color: var(--readonly-bg);">
       </div>
       <div class="form-group">
-        <label>部署名 <span style="color:red">*</span></label>
+        <label>部署名 <span style="color:var(--danger-color)">*</span></label>
         <input type="text" id="sec-edit-name" required>
       </div>
       <div class="form-group">
-        <label>所属事業部 <span style="color:red">*</span></label>
+        <label>所属事業部 <span style="color:var(--danger-color)">*</span></label>
         <select id="sec-edit-dept-id" required></select>
       </div>
       <div class="form-group">
@@ -464,14 +493,14 @@
       <input type="hidden" id="emp-edit-orig-retire-date">
       <div class="form-group">
         <label>社員ID</label>
-        <input type="text" id="emp-edit-id" readonly style="background-color: #f0f0f0;">
+        <input type="text" id="emp-edit-id" readonly style="background-color: var(--readonly-bg);">
       </div>
       <div class="form-group">
-        <label>氏名 <span style="color:red">*</span></label>
+        <label>氏名 <span style="color:var(--danger-color)">*</span></label>
         <input type="text" id="emp-edit-name" required>
       </div>
       <div class="form-group">
-        <label>メールアドレス <span style="color:red">*</span></label>
+        <label>メールアドレス <span style="color:var(--danger-color)">*</span></label>
         <input type="email" id="emp-edit-email" required>
       </div>
       <div class="form-group">
@@ -483,9 +512,9 @@
         <select id="emp-edit-sec-id" onchange="checkEmployeeEditReassignNeeded()"></select>
       </div>
       <div class="form-group" id="emp-edit-reassign-date-group" style="display:none;">
-        <label>異動日 <span style="color:red">*</span></label>
+        <label>異動日 <span style="color:var(--danger-color)">*</span></label>
         <input type="date" id="emp-edit-reassign-date">
-        <div style="font-size:12px; color:#666; margin-top:4px;">現在の主所属はこの前日付で終了します。事業部（部署は任意）を指定した場合は新しい主所属として履歴に追加登録され、事業部も未選択のままにした場合は「所属なし」になります。</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">現在の主所属はこの前日付で終了します。事業部（部署は任意）を指定した場合は新しい主所属として履歴に追加登録され、事業部も未選択のままにした場合は「所属なし」になります。</div>
       </div>
       <div class="form-group">
         <label>兼務（複数可）</label>
@@ -504,7 +533,7 @@
           <option value="休職">休職</option>
           <option value="退職">退職</option>
         </select>
-        <div id="emp-edit-status-locked-note" style="display:none; font-size:12px; color:#666; margin-top:4px;">退職済みのため、在籍状況は変更できません。</div>
+        <div id="emp-edit-status-locked-note" style="display:none; font-size:12px; color:var(--text-muted); margin-top:4px;">退職済みのため、在籍状況は変更できません。</div>
       </div>
       <div class="form-group" id="emp-edit-retire-date-group" style="display:none;">
         <label>利用終了日 <span style="color:red" id="emp-edit-retire-date-required">*</span></label>
@@ -525,10 +554,10 @@
     <h3>業務システムへSSOログイン</h3>
     <div class="form-group">
       <label>対象社員</label>
-      <input type="text" id="sso-emp-info" readonly style="background-color: #f0f0f0;">
+      <input type="text" id="sso-emp-info" readonly style="background-color: var(--readonly-bg);">
     </div>
     <div class="form-group">
-      <label>遷移先業務システム <span style="color:red">*</span></label>
+      <label>遷移先業務システム <span style="color:var(--danger-color)">*</span></label>
       <select id="sso-target-system">
         <option value="https://script.google.com/macros/s/AKfycbxlHpEm8bYWG_Yysk5wyD-DLYSACTUwaULBZjUl5zDhWWdeGyil8mYsRN1tR0ta5ND1Ww/exec">ダミーA（SSOテスト）</option>
         <option value="https://script.google.com/macros/s/AKfycbwC2en3g6XedkK4rQcwFPv5WTe4NVxK1yNnY3S0cQODdwPqcE9INiXI_rSCxrU86s6R/exec">戦略・アクションプランシステム</option>
@@ -548,12 +577,12 @@
     <h3 id="temp-pw-title"></h3>
     <div class="form-group">
       <label>対象社員</label>
-      <input type="text" id="temp-pw-emp-info" readonly style="background-color: #f0f0f0;">
+      <input type="text" id="temp-pw-emp-info" readonly style="background-color: var(--readonly-bg);">
     </div>
     <div class="form-group">
       <label>仮パスワード</label>
       <div style="display:flex; gap:8px;">
-        <input type="text" id="temp-pw-value" readonly style="background-color: #f0f0f0; font-family: monospace; font-size: 16px;">
+        <input type="text" id="temp-pw-value" readonly style="background-color: var(--readonly-bg); font-family: monospace; font-size: 16px;">
         <button type="button" class="btn-secondary btn-sm" id="temp-pw-copy-btn" onclick="copyTempPassword()" style="white-space:nowrap;">コピー</button>
       </div>
     </div>
@@ -975,7 +1004,7 @@
   function renderConcurrentList(list) {
     const container = document.getElementById('emp-edit-concurrent-list');
     if (!list || list.length === 0) {
-      container.innerHTML = '<span style="color:#888;">現在、兼務なし</span>';
+      container.innerHTML = '<span style="color:var(--text-muted);">現在、兼務なし</span>';
       return;
     }
     container.innerHTML = list.map(c =>

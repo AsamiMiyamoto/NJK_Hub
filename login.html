@@ -6,12 +6,42 @@
   <title>Next Journey Keynote ログイン</title>
   <style>
     :root {
-      --primary-color: #0056b3;
-      --primary-hover: #004494;
-      --bg-color: #f0f4f8;
+      /* 配色は戦略AP（NJK_APGAS）に合わせる */
+      --primary-color: #6842c2;
+      --primary-hover: #4a2f84;
+      --primary-disabled: #bdaee2;
+      --accent-color: #8b6ce3;
+      --header-color: #6b4fbb;
+      --on-primary: #ffffff;
+      --bg-color: #f7f6fb;
       --card-bg: #ffffff;
-      --text-color: #333333;
-      --border-color: #cccccc;
+      --text-color: #26364a;
+      --text-muted: #6b7280;
+      --text-disabled: #9aa4ae;
+      --border-color: #dfe5eb;
+      --input-border: #cfd7df;
+      --active-tab-bg: #f2effb;
+      --soft-bg: #f2effb;
+      --readonly-bg: #f7f8fa;
+      --link-color: #513a97;
+      --secondary-color: #6b7280;
+      --danger-color: #b42318;
+      --danger-bg: #fff0ee;
+      --success-color: #2f6f57;
+      --success-bg: #f3f6f4;
+      --warn-color: #a45d20;
+      --warn-bg: #fff5e9;
+      --warn-border: #e7d99b;
+      --info-color: #235b9a;
+      --info-bg: #edf5ff;
+      --chip-color: #6842c2;
+      --chip-bg: #eee8fb;
+      --table-head-bg: #fbfcfd;
+      --table-head-color: #687483;
+      --table-border: #edf0f3;
+      --table-stripe-bg: #fafbfc;
+      --shadow-color: #00000014;
+      --overlay-color: #0006;
     }
 
     body {
@@ -27,7 +57,7 @@
       max-width: 380px;
       background: var(--card-bg);
       border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px var(--shadow-color);
       padding: 32px;
       margin: 60px auto 20px auto;
     }
@@ -35,13 +65,13 @@
     h2 {
       font-size: 20px;
       margin: 0 0 4px 0;
-      color: var(--primary-color);
+      color: var(--header-color);
       text-align: center;
     }
 
     .sub-title {
       font-size: 13px;
-      color: #777;
+      color: var(--text-muted);
       text-align: center;
       margin-bottom: 24px;
     }
@@ -58,7 +88,7 @@
     .form-group input {
       width: 100%;
       padding: 8px;
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--input-border);
       border-radius: 4px;
       font-size: 14px;
       box-sizing: border-box;
@@ -67,7 +97,7 @@
     .btn-primary {
       width: 100%;
       background-color: var(--primary-color);
-      color: white;
+      color: var(--on-primary);
       border: none;
       padding: 10px 16px;
       border-radius: 4px;
@@ -76,15 +106,15 @@
     }
 
     .btn-primary:hover { background-color: var(--primary-hover); }
-    .btn-primary:disabled { background-color: #99b8d6; cursor: not-allowed; }
+    .btn-primary:disabled { background-color: var(--primary-disabled); cursor: not-allowed; }
 
     .btn-dest {
       display: block;
       width: 100%;
       text-align: left;
-      background-color: #ffffff;
+      background-color: var(--card-bg);
       color: var(--text-color);
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--input-border);
       padding: 12px 14px;
       border-radius: 4px;
       font-size: 14px;
@@ -92,11 +122,11 @@
       margin-bottom: 10px;
     }
 
-    .btn-dest:hover { background-color: #f5f8fb; border-color: var(--primary-color); }
-    .btn-dest:disabled { color: #aaa; cursor: not-allowed; background-color: #f7f7f7; }
+    .btn-dest:hover { background-color: var(--soft-bg); border-color: var(--primary-color); }
+    .btn-dest:disabled { color: var(--text-disabled); cursor: not-allowed; background-color: var(--readonly-bg); }
 
     .error-message {
-      color: #dc3545;
+      color: var(--danger-color);
       font-size: 13px;
       margin-top: -8px;
       margin-bottom: 12px;
@@ -115,7 +145,7 @@
 
     .welcome-info .org {
       font-size: 13px;
-      color: #777;
+      color: var(--text-muted);
       margin-top: 2px;
     }
 
@@ -124,14 +154,14 @@
       text-align: center;
       margin-top: 16px;
       font-size: 13px;
-      color: #888;
+      color: var(--text-muted);
       cursor: pointer;
       text-decoration: underline;
     }
 
     .notice {
-      background-color: #fff8e1;
-      border: 1px solid #f0d58c;
+      background-color: var(--warn-bg);
+      border: 1px solid var(--warn-border);
       border-radius: 4px;
       padding: 10px 12px;
       font-size: 13px;
@@ -141,21 +171,21 @@
 
     .hint {
       font-size: 12px;
-      color: #777;
+      color: var(--text-muted);
       margin-top: 4px;
     }
 
     .forgot-note {
       font-size: 12px;
-      color: #777;
+      color: var(--text-muted);
       text-align: center;
       margin-top: 8px;
     }
 
-    .form-group input[readonly] { background-color: #f5f5f5; }
+    .form-group input[readonly] { background-color: var(--readonly-bg); }
 
     #menu-error { margin-top: 0; }
-    .notice a { color: var(--primary-color); font-weight: bold; }
+    .notice a { color: var(--link-color); font-weight: bold; }
   </style>
 </head>
 <body>
