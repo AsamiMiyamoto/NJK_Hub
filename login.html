@@ -257,10 +257,8 @@
   </div>
 
 <script>
-  const SYSTEM_URLS = {
-    strategy: 'https://script.google.com/macros/s/AKfycbwC2en3g6XedkK4rQcwFPv5WTe4NVxK1yNnY3S0cQODdwPqcE9INiXI_rSCxrU86s6R/exec',
-    jinji: 'https://script.google.com/macros/s/AKfycbyqGY8dPwXWB3vVOmaN2Eu9ZHWRqzwlK4VlZ01aVlURj4N1uPCnV7Iin14hPCd9SMnG/exec'
-  };
+  // 遷移先のURLはサーバー側（Code.js の SYSTEM_URLS_）で一元管理する
+  const SYSTEM_URLS = <?!= JSON.stringify(SYSTEM_URLS_) ?>;
 
   // ログインセッションID（共通基盤側で6時間有効）。ページを再読み込みすると破棄され、再ログインが必要
   let sessionId = null;

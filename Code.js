@@ -23,6 +23,12 @@ const ADMIN_HISTORY_HEADERS_ = ['日時', '操作', '対象', '実行者'];
 const PORTAL_ADMIN_ONLY_ = true;
 const PORTAL_SYSTEM_KEY_ = 'jinji';
 
+// 共通基盤メニューからの遷移先（キーは goToSystem に渡すシステム名）。ログイン画面と管理画面のヘルプで使う
+const SYSTEM_URLS_ = {
+  strategy: 'https://script.google.com/macros/s/AKfycbwC2en3g6XedkK4rQcwFPv5WTe4NVxK1yNnY3S0cQODdwPqcE9INiXI_rSCxrU86s6R/exec',
+  jinji: 'https://script.google.com/macros/s/AKfycbyqGY8dPwXWB3vVOmaN2Eu9ZHWRqzwlK4VlZ01aVlURj4N1uPCnV7Iin14hPCd9SMnG/exec'
+};
+
 // 先頭は英数字に限る（=・+・- で始まる値はシートで数式として扱われるため）
 const ADMIN_EMAIL_PATTERN_ = /^[a-z0-9][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}$/;
 
@@ -211,6 +217,19 @@ function removeAdmin(email) {
     lock.releaseLock();
   }
   return { success: true, email: target };
+}
+
+/**
+ * 管理画面ヘルプの「各システムのURL」の表に出すURL（共通基盤自身のURLと SYSTEM_URLS_ から作る）
+ */
+function getHelpUrls_() {
+  const selfUrl = ScriptApp.getService().getUrl();
+  return {
+    login: selfUrl,
+    admin: selfUrl + '?admin=true',
+    strategy: SYSTEM_URLS_.strategy,
+    jinji: SYSTEM_URLS_.jinji
+  };
 }
 
 function doGet(e) {
@@ -465,7 +484,7 @@ function createSession_(employeeId, createdAt) {
  * 遷移先が利用できない（準備中のポータルを管理者以外が開こうとした）場合は、セッションを残したまま
  * { success: false, error } を返す
  * @param {string} sessionId ログインセッションID
- * @param {string} systemKey 遷移先システム（login.html の SYSTEM_URLS のキー）
+ * @param {string} systemKey 遷移先システム（SYSTEM_URLS_ のキー）
  */
 function issueSsoTokenForSession(sessionId, systemKey) {
   const expiredMsg = "セッションの有効期限が切れました。再度ログインしてください。";
