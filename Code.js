@@ -289,7 +289,7 @@ function generateTempPassword_() {
 // ----------------------------------------------------
 
 function authFailKey_(prefix, email) {
-  return prefix + computeHash_(String(email));
+  return prefix + computeHash_(normalizeEmail_(email));
 }
 
 /**
@@ -330,13 +330,16 @@ function isActiveEmployee_(emp) {
  * メールアドレス＋パスワードの照合。成功時は社員レコード（内部用）を返す
  * failPrefix ごとに試行回数を数え、ロック中はPWを照合せずに拒否する。
  * 存在しないメールアドレスも同じく数え、無効・退職はPWが一致した場合のみ知らせる（登録有無を推測させないため）
+ * メールアドレスは大文字・小文字を区別しない（試行回数も同じキーで数える）
  */
 function authenticate_(email, password, failPrefix) {
   const cache = CacheService.getScriptCache();
   const failKey = authFailKey_(failPrefix, email);
   if (cache.get(failKey + '_lock')) throw new Error("試行回数が上限に達しました。15分ほどしてから再度お試しください。");
 
-  const emp = getEmployeeRecords_().find(e => e.email === email);
+  // メールアドレスは入力・シートとも前後の空白を除いて小文字化して照合する
+  const normalizedEmail = normalizeEmail_(email);
+  const emp = getEmployeeRecords_().find(e => normalizeEmail_(e.email) === normalizedEmail);
   if (!emp || !verifyPassword_(password, emp.password)) {
     recordAuthFailure_(failKey);
     throw new Error("メールアドレスまたはパスワードが間違っています。");
@@ -552,13 +555,19 @@ function generateNewEmployeeId() {
   return 'E' + ('0000' + (maxNum + 1)).slice(-4);
 }
 
+/**
+ * 社員の新規登録。メールアドレスは前後の空白を除いて小文字化し、既存社員（退職者を含む）との重複は拒否する
+ */
 function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId, sectionId) {
   assertAdmin_();
   status = status || '在籍';
   assertEmployeeStatus_(status);
+  email = normalizeEmail_(email);
+  if (!email) throw new Error("メールアドレスを入力してください。");
   const ss = getCommonSpreadsheet();
   const sheet = ss.getSheetByName('社員マスタ');
   if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
+  assertEmployeeEmailAvailable_(sheet.getDataRange().getValues(), email, '');
 
   const newId = generateNewEmployeeId();
   let formattedDate = startDateStr ? Utilities.formatDate(new Date(startDateStr), Session.getScriptTimeZone(), 'yyyy/MM/dd') : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd');
@@ -576,6 +585,51 @@ function registerEmployeeFromWeb(name, email, status, startDateStr, departmentId
     });
   }
   return { success: true, employeeId: newId, tempPassword: tempPassword };
+}
+
+/**
+ * 社員マスタのメールアドレス（C列）の重複チェック。前後の空白を除いて小文字化して比較し、退職者も対象とする
+ * @param {Array<Array>} data 社員マスタの全行（見出し行を含む）
+ * @param {string} email 正規化済みのメールアドレス
+ * @param {string} excludeEmployeeId 比較から除く社員ID（編集時の本人）。新規登録は空文字
+ */
+function assertEmployeeEmailAvailable_(data, email, excludeEmployeeId) {
+  for (let i = 1; i < data.length; i++) {
+    if (excludeEmployeeId && data[i][0] === excludeEmployeeId) continue;
+    if (normalizeEmail_(data[i][2]) === email) {
+      throw new Error("このメールアドレスは既に登録されています（社員ID: " + data[i][0] + "）。");
+    }
+  }
+}
+
+/**
+ * 【一時関数：GASエディタで手動実行する点検用・読み取り専用】
+ * 社員マスタのメールアドレス（C列）について、大文字・前後の空白を含むものと、
+ * 小文字化すると重複するもの（退職者を含む）をログに出す。シートは書き換えない。点検が済んだら削除する。
+ */
+function auditEmployeeEmails() {
+  assertAdmin_();
+  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
+  if (!sheet) throw new Error("「社員マスタ」シートが見つかりません。");
+  const data = sheet.getDataRange().getValues();
+
+  const notNormalized = [];
+  const byEmail = {};
+  for (let i = 1; i < data.length; i++) {
+    const empId = String(data[i][0] || '');
+    const raw = String(data[i][2] || '');
+    const email = normalizeEmail_(raw);
+    if (!empId && !raw) continue;
+    if (raw !== email) notNormalized.push(empId + ' (' + (i + 1) + '行目): "' + raw + '"');
+    if (!email) continue;
+    if (!byEmail[email]) byEmail[email] = [];
+    byEmail[email].push(empId + '(' + (data[i][3] || '') + ')');
+  }
+  const duplicates = Object.keys(byEmail).filter(k => byEmail[k].length > 1).map(k => k + ' → ' + byEmail[k].join(', '));
+
+  Logger.log('点検対象 ' + (data.length - 1) + ' 行');
+  Logger.log('大文字・前後の空白を含む: ' + notNormalized.length + ' 件' + (notNormalized.length ? '\n' + notNormalized.join('\n') : ''));
+  Logger.log('小文字化すると重複: ' + duplicates.length + ' 件' + (duplicates.length ? '\n' + duplicates.join('\n') : ''));
 }
 
 /**
@@ -969,6 +1023,7 @@ function retireEmployee(employeeId, endDateStr) {
 
 /**
  * 社員情報の編集（氏名・メールアドレス・在籍状況）
+ * メールアドレスは前後の空白を除いて小文字化し、本人以外の社員（退職者を含む）との重複は拒否する。
  * 在籍状況が「退職」の場合のみ利用終了日を必須とし、そうでない場合は利用終了日をクリアする。
  * 退職済みの社員は在籍状況を変更できない（退職のまま、他の項目の編集は可）。
  * 退職済みの社員は利用終了日を必須とせず、指定された場合のみ上書きする。
@@ -989,6 +1044,9 @@ function updateEmployeeFromWeb(employeeId, name, email, status, endDateStr) {
     if (data[i][0] === employeeId) { targetRow = i + 1; break; }
   }
   if (targetRow < 0) throw new Error("指定された社員IDが見つかりません: " + employeeId);
+  email = normalizeEmail_(email);
+  if (!email) throw new Error("メールアドレスを入力してください。");
+  assertEmployeeEmailAvailable_(data, email, employeeId);
   assertEmployeeStatus_(status);
   const alreadyRetired = data[targetRow - 1][3] === '退職';
   if (alreadyRetired && status !== '退職') throw new Error("退職済みの社員の在籍状況は変更できません。");
