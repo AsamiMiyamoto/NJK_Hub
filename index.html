@@ -195,9 +195,21 @@
       background: var(--card-bg);
       padding: 24px;
       border-radius: 8px;
-      width: 450px;
-      max-width: 90%;
+      box-sizing: border-box;
+      width: 498px;
+      max-width: calc(100vw - 32px);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
     }
+
+    /* 画面の高さが小さいときは、見出しとボタン列を固定し、入力欄の部分（.modal-body）だけを縦スクロールさせる */
+    .modal-content > h3 { flex: 0 0 auto; }
+    .modal-content > form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px; margin: -2px; }
+
+    /* モーダル表示中は背景（一覧）をスクロールさせない */
+    body.modal-open { overflow: hidden; }
 
     .form-group { margin-bottom: 15px; }
 
@@ -217,6 +229,7 @@
     }
 
     .modal-footer {
+      flex: 0 0 auto;
       text-align: right;
       margin-top: 20px;
       display: flex;
@@ -550,32 +563,34 @@
   <div class="modal-content">
     <h3>新規社員登録</h3>
     <form id="employee-form" onsubmit="handleEmployeeSubmit(event)">
-      <div class="form-group">
-        <label>氏名 <span style="color:var(--danger-color)">*</span></label>
-        <input type="text" id="emp-name" required placeholder="例：共通 太郎">
-      </div>
-      <div class="form-group">
-        <label>メールアドレス <span style="color:var(--danger-color)">*</span></label>
-        <input type="email" id="emp-email" required placeholder="例：taro@example.com">
-      </div>
-      <div class="form-group">
-        <label>主所属 事業部</label>
-        <select id="emp-dept-id" onchange="updateEmployeeSectionDropdown()"></select>
-      </div>
-      <div class="form-group">
-        <label>主所属 部署</label>
-        <select id="emp-sec-id"></select>
-      </div>
-      <div class="form-group">
-        <label>在籍状況</label>
-        <select id="emp-status">
-          <option value="在籍">在籍</option>
-          <option value="休職">休職</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>利用開始日</label>
-        <input type="date" id="emp-start-date">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>氏名 <span style="color:var(--danger-color)">*</span></label>
+          <input type="text" id="emp-name" required placeholder="例：共通 太郎">
+        </div>
+        <div class="form-group">
+          <label>メールアドレス <span style="color:var(--danger-color)">*</span></label>
+          <input type="email" id="emp-email" required placeholder="例：taro@example.com">
+        </div>
+        <div class="form-group">
+          <label>主所属 事業部</label>
+          <select id="emp-dept-id" onchange="updateEmployeeSectionDropdown()"></select>
+        </div>
+        <div class="form-group">
+          <label>主所属 部署</label>
+          <select id="emp-sec-id"></select>
+        </div>
+        <div class="form-group">
+          <label>在籍状況</label>
+          <select id="emp-status">
+            <option value="在籍">在籍</option>
+            <option value="休職">休職</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>利用開始日</label>
+          <input type="date" id="emp-start-date">
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeEmployeeModal()">キャンセル</button>
@@ -590,13 +605,15 @@
   <div class="modal-content">
     <h3>新規事業部登録</h3>
     <form id="department-form" onsubmit="handleDepartmentSubmit(event)">
-      <div class="form-group">
-        <label>事業部名 <span style="color:var(--danger-color)">*</span></label>
-        <input type="text" id="dept-name" required placeholder="例：DX推進本部">
-      </div>
-      <div class="form-group">
-        <label>表示順</label>
-        <input type="number" id="dept-sort" value="10">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>事業部名 <span style="color:var(--danger-color)">*</span></label>
+          <input type="text" id="dept-name" required placeholder="例：DX推進本部">
+        </div>
+        <div class="form-group">
+          <label>表示順</label>
+          <input type="number" id="dept-sort" value="10">
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeDepartmentModal()">キャンセル</button>
@@ -611,21 +628,23 @@
   <div class="modal-content">
     <h3>新規部署登録</h3>
     <form id="section-form" onsubmit="handleSectionSubmit(event)">
-      <div class="form-group">
-        <label>部署名 <span style="color:var(--danger-color)">*</span></label>
-        <input type="text" id="sec-name" required placeholder="例：システム開発部">
-      </div>
-      <div class="form-group">
-        <label>所属事業部 <span style="color:var(--danger-color)">*</span></label>
-        <select id="sec-dept-id" required></select>
-      </div>
-      <div class="form-group">
-        <label>表示順</label>
-        <input type="number" id="sec-sort" value="10">
-      </div>
-      <div class="form-group">
-        <label>利用開始日</label>
-        <input type="date" id="sec-start-date">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>部署名 <span style="color:var(--danger-color)">*</span></label>
+          <input type="text" id="sec-name" required placeholder="例：システム開発部">
+        </div>
+        <div class="form-group">
+          <label>所属事業部 <span style="color:var(--danger-color)">*</span></label>
+          <select id="sec-dept-id" required></select>
+        </div>
+        <div class="form-group">
+          <label>表示順</label>
+          <input type="number" id="sec-sort" value="10">
+        </div>
+        <div class="form-group">
+          <label>利用開始日</label>
+          <input type="date" id="sec-start-date">
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeSectionModal()">キャンセル</button>
@@ -640,23 +659,25 @@
   <div class="modal-content">
     <h3>事業部情報の編集</h3>
     <form id="department-edit-form" onsubmit="handleDepartmentEditSubmit(event)">
-      <div class="form-group">
-        <label>事業部ID</label>
-        <input type="text" id="dept-edit-id" readonly style="background-color: var(--readonly-bg);">
-      </div>
-      <div class="form-group">
-        <label>事業部名 <span style="color:var(--danger-color)">*</span></label>
-        <input type="text" id="dept-edit-name" required>
-      </div>
-      <div class="form-group">
-        <label>表示順</label>
-        <input type="number" id="dept-edit-sort">
-      </div>
-      <div class="form-group">
-        <label>有効フラグ</label>
-        <label style="font-weight:normal; display:flex; align-items:center; gap:6px;">
-          <input type="checkbox" id="dept-edit-active" style="width:auto; padding:0; border:none;"> 有効にする
-        </label>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>事業部ID</label>
+          <input type="text" id="dept-edit-id" readonly style="background-color: var(--readonly-bg);">
+        </div>
+        <div class="form-group">
+          <label>事業部名 <span style="color:var(--danger-color)">*</span></label>
+          <input type="text" id="dept-edit-name" required>
+        </div>
+        <div class="form-group">
+          <label>表示順</label>
+          <input type="number" id="dept-edit-sort">
+        </div>
+        <div class="form-group">
+          <label>有効フラグ</label>
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="dept-edit-active" style="width:auto; padding:0; border:none;"> 有効にする
+          </label>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeDepartmentEditModal()">キャンセル</button>
@@ -671,31 +692,33 @@
   <div class="modal-content">
     <h3>部署情報の編集</h3>
     <form id="section-edit-form" onsubmit="handleSectionEditSubmit(event)">
-      <div class="form-group">
-        <label>部署ID</label>
-        <input type="text" id="sec-edit-id" readonly style="background-color: var(--readonly-bg);">
-      </div>
-      <div class="form-group">
-        <label>部署名 <span style="color:var(--danger-color)">*</span></label>
-        <input type="text" id="sec-edit-name" required>
-      </div>
-      <div class="form-group">
-        <label>所属事業部 <span style="color:var(--danger-color)">*</span></label>
-        <select id="sec-edit-dept-id" required></select>
-      </div>
-      <div class="form-group">
-        <label>表示順</label>
-        <input type="number" id="sec-edit-sort">
-      </div>
-      <div class="form-group">
-        <label>利用開始日</label>
-        <input type="date" id="sec-edit-start-date">
-      </div>
-      <div class="form-group">
-        <label>有効フラグ</label>
-        <label style="font-weight:normal; display:flex; align-items:center; gap:6px;">
-          <input type="checkbox" id="sec-edit-active" style="width:auto; padding:0; border:none;"> 有効にする
-        </label>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>部署ID</label>
+          <input type="text" id="sec-edit-id" readonly style="background-color: var(--readonly-bg);">
+        </div>
+        <div class="form-group">
+          <label>部署名 <span style="color:var(--danger-color)">*</span></label>
+          <input type="text" id="sec-edit-name" required>
+        </div>
+        <div class="form-group">
+          <label>所属事業部 <span style="color:var(--danger-color)">*</span></label>
+          <select id="sec-edit-dept-id" required></select>
+        </div>
+        <div class="form-group">
+          <label>表示順</label>
+          <input type="number" id="sec-edit-sort">
+        </div>
+        <div class="form-group">
+          <label>利用開始日</label>
+          <input type="date" id="sec-edit-start-date">
+        </div>
+        <div class="form-group">
+          <label>有効フラグ</label>
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="sec-edit-active" style="width:auto; padding:0; border:none;"> 有効にする
+          </label>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeSectionEditModal()">キャンセル</button>
@@ -710,58 +733,60 @@
   <div class="modal-content">
     <h3>社員情報の編集</h3>
     <form id="employee-edit-form" onsubmit="handleEmployeeEditSubmit(event)">
-      <input type="hidden" id="emp-edit-orig-dept">
-      <input type="hidden" id="emp-edit-orig-sec">
-      <input type="hidden" id="emp-edit-orig-status">
-      <input type="hidden" id="emp-edit-orig-retire-date">
-      <div class="form-group">
-        <label>社員ID</label>
-        <input type="text" id="emp-edit-id" readonly style="background-color: var(--readonly-bg);">
-      </div>
-      <div class="form-group">
-        <label>氏名 <span style="color:var(--danger-color)">*</span></label>
-        <input type="text" id="emp-edit-name" required>
-      </div>
-      <div class="form-group">
-        <label>メールアドレス <span style="color:var(--danger-color)">*</span></label>
-        <input type="email" id="emp-edit-email" required>
-      </div>
-      <div class="form-group">
-        <label>主所属 事業部</label>
-        <select id="emp-edit-dept-id" onchange="updateEmployeeEditSectionDropdown()"></select>
-      </div>
-      <div class="form-group">
-        <label>主所属 部署</label>
-        <select id="emp-edit-sec-id" onchange="checkEmployeeEditReassignNeeded()"></select>
-      </div>
-      <div class="form-group" id="emp-edit-reassign-date-group" style="display:none;">
-        <label>異動日 <span style="color:var(--danger-color)">*</span></label>
-        <input type="date" id="emp-edit-reassign-date">
-        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">現在の主所属はこの前日付で終了します。事業部（部署は任意）を指定した場合は新しい主所属として履歴に追加登録され、事業部も未選択のままにした場合は「所属なし」になります。</div>
-      </div>
-      <div class="form-group">
-        <label>兼務（複数可）</label>
-        <div id="emp-edit-concurrent-list" style="font-size:13px; margin-bottom:8px;"></div>
-        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
-          <select id="emp-edit-concurrent-dept" style="width:auto; flex:1 1 140px;" onchange="updateConcurrentSectionDropdown()"></select>
-          <select id="emp-edit-concurrent-sec" style="width:auto; flex:1 1 140px;"></select>
-          <input type="date" id="emp-edit-concurrent-date" style="width:auto; flex:1 1 140px;">
-          <button type="button" class="btn-secondary btn-sm" onclick="addConcurrentAssignment()" style="white-space:nowrap; flex:0 0 auto;">＋ 追加</button>
+      <div class="modal-body">
+        <input type="hidden" id="emp-edit-orig-dept">
+        <input type="hidden" id="emp-edit-orig-sec">
+        <input type="hidden" id="emp-edit-orig-status">
+        <input type="hidden" id="emp-edit-orig-retire-date">
+        <div class="form-group">
+          <label>社員ID</label>
+          <input type="text" id="emp-edit-id" readonly style="background-color: var(--readonly-bg);">
         </div>
-      </div>
-      <div class="form-group">
-        <label>在籍状況</label>
-        <select id="emp-edit-status" onchange="toggleEmployeeEditRetireDate()">
-          <option value="在籍">在籍</option>
-          <option value="休職">休職</option>
-          <option value="退職">退職</option>
-        </select>
-        <div id="emp-edit-status-locked-note" style="display:none; font-size:12px; color:var(--text-muted); margin-top:4px;">退職済みのため、在籍状況は変更できません。</div>
-      </div>
-      <div class="form-group" id="emp-edit-retire-date-group" style="display:none;">
-        <label>利用終了日 <span style="color:var(--danger-color)" id="emp-edit-retire-date-required">*</span></label>
-        <input type="date" id="emp-edit-retire-date">
-        <p class="warning-box" id="emp-edit-retire-warning">在籍状況を「退職」に変更すると、システムの利用ができなくなります。この操作は取り消せません。</p>
+        <div class="form-group">
+          <label>氏名 <span style="color:var(--danger-color)">*</span></label>
+          <input type="text" id="emp-edit-name" required>
+        </div>
+        <div class="form-group">
+          <label>メールアドレス <span style="color:var(--danger-color)">*</span></label>
+          <input type="email" id="emp-edit-email" required>
+        </div>
+        <div class="form-group">
+          <label>主所属 事業部</label>
+          <select id="emp-edit-dept-id" onchange="updateEmployeeEditSectionDropdown()"></select>
+        </div>
+        <div class="form-group">
+          <label>主所属 部署</label>
+          <select id="emp-edit-sec-id" onchange="checkEmployeeEditReassignNeeded()"></select>
+        </div>
+        <div class="form-group" id="emp-edit-reassign-date-group" style="display:none;">
+          <label>異動日 <span style="color:var(--danger-color)">*</span></label>
+          <input type="date" id="emp-edit-reassign-date">
+          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">現在の主所属はこの前日付で終了します。事業部（部署は任意）を指定した場合は新しい主所属として履歴に追加登録され、事業部も未選択のままにした場合は「所属なし」になります。</div>
+        </div>
+        <div class="form-group">
+          <label>兼務（複数可）</label>
+          <div id="emp-edit-concurrent-list" style="font-size:13px; margin-bottom:8px;"></div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+            <select id="emp-edit-concurrent-dept" style="width:auto; flex:1 1 140px;" onchange="updateConcurrentSectionDropdown()"></select>
+            <select id="emp-edit-concurrent-sec" style="width:auto; flex:1 1 140px;"></select>
+            <input type="date" id="emp-edit-concurrent-date" style="width:auto; flex:1 1 140px;">
+            <button type="button" class="btn-secondary btn-sm" onclick="addConcurrentAssignment()" style="white-space:nowrap; flex:0 0 auto;">＋ 追加</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>在籍状況</label>
+          <select id="emp-edit-status" onchange="toggleEmployeeEditRetireDate()">
+            <option value="在籍">在籍</option>
+            <option value="休職">休職</option>
+            <option value="退職">退職</option>
+          </select>
+          <div id="emp-edit-status-locked-note" style="display:none; font-size:12px; color:var(--text-muted); margin-top:4px;">退職済みのため、在籍状況は変更できません。</div>
+        </div>
+        <div class="form-group" id="emp-edit-retire-date-group" style="display:none;">
+          <label>利用終了日 <span style="color:var(--danger-color)" id="emp-edit-retire-date-required">*</span></label>
+          <input type="date" id="emp-edit-retire-date">
+          <p class="warning-box" id="emp-edit-retire-warning">在籍状況を「退職」に変更すると、システムの利用ができなくなります。この操作は取り消せません。</p>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeEmployeeEditModal()">キャンセル</button>
@@ -775,16 +800,18 @@
 <div id="sso-modal" class="modal">
   <div class="modal-content">
     <h3>業務システムへSSOログイン</h3>
-    <div class="form-group">
-      <label>対象社員</label>
-      <input type="text" id="sso-emp-info" readonly style="background-color: var(--readonly-bg);">
-    </div>
-    <div class="form-group">
-      <label>遷移先業務システム <span style="color:var(--danger-color)">*</span></label>
-      <select id="sso-target-system">
-        <option value="<?= SYSTEM_URLS_.strategy ?>">戦略・アクションプランシステム</option>
-        <option value="<?= SYSTEM_URLS_.jinji ?>">人事評価</option>
-      </select>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>対象社員</label>
+        <input type="text" id="sso-emp-info" readonly style="background-color: var(--readonly-bg);">
+      </div>
+      <div class="form-group">
+        <label>遷移先業務システム <span style="color:var(--danger-color)">*</span></label>
+        <select id="sso-target-system">
+          <option value="<?= SYSTEM_URLS_.strategy ?>">戦略・アクションプランシステム</option>
+          <option value="<?= SYSTEM_URLS_.jinji ?>">人事評価</option>
+        </select>
+      </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn-secondary" onclick="closeSsoModal()">キャンセル</button>
@@ -797,18 +824,20 @@
 <div id="temp-pw-modal" class="modal">
   <div class="modal-content">
     <h3 id="temp-pw-title"></h3>
-    <div class="form-group">
-      <label>対象社員</label>
-      <input type="text" id="temp-pw-emp-info" readonly style="background-color: var(--readonly-bg);">
-    </div>
-    <div class="form-group">
-      <label>仮パスワード</label>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="temp-pw-value" readonly style="background-color: var(--readonly-bg); font-family: monospace; font-size: 16px;">
-        <button type="button" class="btn-secondary btn-sm" id="temp-pw-copy-btn" onclick="copyTempPassword()" style="white-space:nowrap;">コピー</button>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>対象社員</label>
+        <input type="text" id="temp-pw-emp-info" readonly style="background-color: var(--readonly-bg);">
       </div>
+      <div class="form-group">
+        <label>仮パスワード</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="temp-pw-value" readonly style="background-color: var(--readonly-bg); font-family: monospace; font-size: 16px;">
+          <button type="button" class="btn-secondary btn-sm" id="temp-pw-copy-btn" onclick="copyTempPassword()" style="white-space:nowrap;">コピー</button>
+        </div>
+      </div>
+      <p class="warning-box">この画面を閉じると再表示できません。本人に直接伝えてください。</p>
     </div>
-    <p class="warning-box">この画面を閉じると再表示できません。本人に直接伝えてください。</p>
     <div class="modal-footer">
       <button type="button" class="btn-primary" onclick="closeTempPasswordModal()">閉じる</button>
     </div>
@@ -841,6 +870,14 @@
       document.getElementById(link.dataset.helpTarget).scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
+
+  // いずれかのモーダルが表示されている間は、背景（一覧）をスクロールさせない
+  // （各モーダルは style.display で開閉しているため、その変化を監視する）
+  const modalObserver = new MutationObserver(() => {
+    const anyOpen = Array.from(document.querySelectorAll('.modal')).some(m => m.style.display && m.style.display !== 'none');
+    document.body.classList.toggle('modal-open', anyOpen);
+  });
+  document.querySelectorAll('.modal').forEach(m => modalObserver.observe(m, { attributes: true, attributeFilter: ['style'] }));
 
   function switchTab(tabId, tabElement) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
