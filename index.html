@@ -1313,7 +1313,7 @@
     renderConcurrentList(emp.concurrentAssignments);
     document.getElementById('emp-edit-concurrent-dept').innerHTML = '<option value="">-- 選択 --</option>' +
       cachedDepartments.filter(d => d.active).map(idNameOption_).join('');
-    document.getElementById('emp-edit-concurrent-sec').innerHTML = '<option value="">-- 選択 --</option>';
+    document.getElementById('emp-edit-concurrent-sec').innerHTML = '<option value="">（部署なし）</option>';
     document.getElementById('emp-edit-concurrent-date').valueAsDate = new Date();
 
     const validStatuses = ['在籍', '休職', '退職'];
@@ -1352,16 +1352,18 @@
       container.innerHTML = '<span style="color:var(--text-muted);">現在、兼務なし</span>';
       return;
     }
+    // 部署なしの兼務は事業部名だけを表示する
     container.innerHTML = list.map(c =>
-      `<div><span class="badge badge-sub">兼務</span> ${escapeHtml_(c.departmentName)} / ${escapeHtml_(c.sectionName)}</div>`
+      `<div><span class="badge badge-sub">兼務</span> ${escapeHtml_(c.departmentName)}${c.sectionName ? ' / ' + escapeHtml_(c.sectionName) : ''}</div>`
     ).join('');
   }
 
   function updateConcurrentSectionDropdown() {
     const deptId = document.getElementById('emp-edit-concurrent-dept').value;
     const secSelect = document.getElementById('emp-edit-concurrent-sec');
-    const filtered = cachedSections.filter(s => s.active && (!deptId || s.departmentId === deptId));
-    secSelect.innerHTML = '<option value="">-- 選択 --</option>' +
+    // 主所属と同じく、先頭は「（部署なし）」。部署は選んだ事業部の有効な部署だけを出す
+    const filtered = deptId ? cachedSections.filter(s => s.active && s.departmentId === deptId) : [];
+    secSelect.innerHTML = '<option value="">（部署なし）</option>' +
       filtered.map(idNameOption_).join('');
   }
 
@@ -1370,7 +1372,7 @@
     const deptId = document.getElementById('emp-edit-concurrent-dept').value;
     const secId = document.getElementById('emp-edit-concurrent-sec').value;
     const startDate = document.getElementById('emp-edit-concurrent-date').value;
-    if (!deptId || !secId) { alert('兼務先の事業部・部署を指定してください。'); return; }
+    if (!deptId) { alert('兼務先の事業部を指定してください。'); return; }
     if (!startDate) { alert('兼務の開始日を指定してください。'); return; }
 
     google.script.run
@@ -1384,7 +1386,7 @@
           })
           .getEmployeeDataForWeb();
         document.getElementById('emp-edit-concurrent-dept').value = '';
-        document.getElementById('emp-edit-concurrent-sec').innerHTML = '<option value="">-- 選択 --</option>';
+        document.getElementById('emp-edit-concurrent-sec').innerHTML = '<option value="">（部署なし）</option>';
         document.getElementById('emp-edit-concurrent-date').valueAsDate = new Date();
       })
       .withFailureHandler(err => { alert('兼務の追加に失敗しました: ' + err.message); })

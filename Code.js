@@ -899,9 +899,21 @@ function registerAssignment(param) {
 
 /**
  * 所属履歴の登録（内部用。呼び出し側で管理者確認とロックの取得を済ませること）
+ * 事業部・開始日は必須、部署は任意（部署なし）。部署を指定したときだけ、その事業部に属する部署かを確認する。
  * 主所属は期間の重複を拒否し、履歴IDを採番して追記する
  */
 function registerAssignment_(param) {
+  if (!param || !param.employeeId) throw new Error("社員IDが指定されていません。");
+  if (!param.departmentId) throw new Error("事業部を指定してください。");
+  if (!param.startDate) throw new Error("開始日を指定してください。");
+  if (param.sectionId) {
+    const section = getSections_().find(s => s.id === param.sectionId);
+    if (!section) throw new Error("指定された部署が見つかりません: " + param.sectionId);
+    if (section.departmentId !== param.departmentId) {
+      throw new Error("部署（" + param.sectionId + "）は指定された事業部（" + param.departmentId + "）に属していません。");
+    }
+  }
+
   const sheet = getCommonSpreadsheet().getSheetByName('所属履歴');
   const newStart = new Date(param.startDate);
   const newEnd = param.endDate ? new Date(param.endDate) : new Date('9999/12/31');
