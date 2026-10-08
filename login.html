@@ -208,6 +208,23 @@
     }
     .form-group textarea { min-height: 120px; resize: vertical; }
     .contact-done { text-align: center; font-size: 14px; margin: 8px 0 4px; }
+
+    /* ガイド（ログインのしかた・NJKガイド）。表示中はカードの横幅を広げ、表は横スクロールできるようにする */
+    .card.card-wide { width: calc(100% - 32px); max-width: 720px; box-sizing: border-box; }
+    .guide { font-size: 14px; line-height: 1.7; }
+    .guide h2.help-h1 { font-size: 18px; color: var(--header-color); text-align: left; margin: 0 0 8px; }
+    .guide h3.help-h2 { font-size: 16px; color: var(--header-color); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; margin: 24px 0 2px; }
+    .guide .guide-back { margin: 0 0 8px; font-size: 12px; text-align: right; }
+    .guide a { color: var(--link-color); }
+    .guide ul, .guide ol { padding-left: 20px; }
+    .guide-toc { background-color: var(--soft-bg); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; }
+    .guide-toc-title { font-weight: bold; margin: 0 0 4px; }
+    .guide-toc ol { margin: 0; }
+    .table-scroll { overflow-x: auto; margin: 8px 0 12px; }
+    .guide table { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 13px; }
+    .guide th, .guide td { border: 1px solid var(--table-border); padding: 6px 8px; text-align: left; vertical-align: top; }
+    .guide th { background-color: var(--table-head-bg); color: var(--table-head-color); }
+    .guide-close { margin-top: 0; text-align: right; }
     .notice a { color: var(--link-color); font-weight: bold; }
   </style>
 </head>
@@ -232,6 +249,7 @@
         <button type="submit" class="btn-primary" id="login-submit-btn">ログイン</button>
         <div class="forgot-note">パスワードがわからない場合は、管理者にリセットを依頼してください</div>
       </form>
+      <span class="logout-link" onclick="showGuide('guide-login-view')">ログインのしかた</span>
       <span class="logout-link" onclick="showChangeView(false)">パスワードを変更する</span>
       <span class="logout-link" onclick="showContactView()">システム管理者に連絡</span>
     </div>
@@ -278,6 +296,46 @@
       <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理</button>
       <button type="button" class="btn-dest" onclick="showContactView()">システム管理者に連絡</button>
       <span class="logout-link" onclick="backToLogin()">ログアウト</span>
+    </div>
+
+    <!-- ガイド：ログインのしかた -->
+    <div id="guide-login-view" class="guide" style="display:none;">
+      <span class="logout-link guide-close" onclick="closeGuide()">戻る</span>
+      <h2 class="help-h1">ログインのしかた</h2>
+      <nav class="guide-toc" id="guide-login-toc"><p class="guide-toc-title">目次</p><ol>
+      <li><a href="#guide-login-1" class="help-link" data-target="guide-login-1">はじめてログインするとき</a></li>
+      <li><a href="#guide-login-2" class="help-link" data-target="guide-login-2">パスワードを忘れたとき</a></li>
+      <li><a href="#guide-login-3" class="help-link" data-target="guide-login-3">「試行回数が上限に達しました」と出たとき</a></li>
+      <li><a href="#guide-login-4" class="help-link" data-target="guide-login-4">ログインできないとき</a></li>
+      </ol></nav>
+      <h3 class="help-h2" id="guide-login-1">はじめてログインするとき</h3>
+      <p class="guide-back"><a href="#guide-login-toc" class="help-link" data-target="guide-login-toc">目次へ戻る</a></p>
+      <ol>
+      <li>会社から伝えられたメールアドレスと仮パスワードを入れて、「ログイン」を押します。</li>
+      <li>パスワード変更の画面に変わります。自分で決めた新しいパスワードを2回入れます。</li>
+      <li>変更できたら、メニューが出ます。使いたいシステムのボタンを押します。</li>
+      </ol>
+      <p>新しいパスワードのルール</p>
+      <ul>
+      <li>8文字以上にしてください。</li>
+      <li>社員ID（E0001など）と同じものは使えません。</li>
+      <li>仮パスワードと同じものは使えません。</li>
+      </ul>
+      <h3 class="help-h2" id="guide-login-2">パスワードを忘れたとき</h3>
+      <p class="guide-back"><a href="#guide-login-toc" class="help-link" data-target="guide-login-toc">目次へ戻る</a></p>
+      <p>自分では元に戻せません。ログイン画面の「システム管理者に連絡」から、用件「パスワードを忘れた」を選んで連絡してください。本人確認のあと、システム管理者から新しい仮パスワードが伝えられます。受け取ったら「<a href="#guide-login-1" class="help-link" data-target="guide-login-1">はじめてログインするとき</a>」と同じ手順で進みます。</p>
+      <h3 class="help-h2" id="guide-login-3">「試行回数が上限に達しました」と出たとき</h3>
+      <p class="guide-back"><a href="#guide-login-toc" class="help-link" data-target="guide-login-toc">目次へ戻る</a></p>
+      <p>5回続けてパスワードを間違えたので、15分間ログインできなくなっています。15分待ってから、もう一度試してください。パスワードを忘れた場合は、ログイン画面の「システム管理者に連絡」から連絡してください。</p>
+      <h3 class="help-h2" id="guide-login-4">ログインできないとき</h3>
+      <p class="guide-back"><a href="#guide-login-toc" class="help-link" data-target="guide-login-toc">目次へ戻る</a></p>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>出たメッセージ</th><th>どうするか</th></tr></thead><tbody>
+      <tr><td>メールアドレスまたはパスワードが間違っています</td><td>入力ミスがないか確認してください。大文字・小文字は区別されません</td></tr>
+      <tr><td>無効化されているアカウントです</td><td>「システム管理者に連絡」から連絡してください</td></tr>
+      <tr><td>退職済みのアカウントです</td><td>「システム管理者に連絡」から連絡してください</td></tr>
+      </tbody></table></div>
+      <p>画面が切り替わらないときは、3秒ほど待つと「開く」が出るので、それを押してください。</p>
+      <span class="logout-link" onclick="closeGuide()">戻る</span>
     </div>
 
     <!-- システム管理者に連絡（ログイン前はメールアドレスを入力、ログイン後は自動入力） -->
@@ -333,11 +391,45 @@
   const NAV_FALLBACK_DELAY_MS = 3000;
   let navFallbackTimer = null;
 
+  const ALL_VIEWS = ['login-view', 'change-view', 'menu-view', 'contact-view', 'guide-login-view'];
+  const GUIDE_VIEWS = ['guide-login-view'];
+
   function showView(viewId) {
-    ['login-view', 'change-view', 'menu-view', 'contact-view'].forEach(id => {
+    ALL_VIEWS.forEach(id => {
       document.getElementById(id).style.display = (id === viewId) ? 'block' : 'none';
     });
+    document.querySelector('.card').classList.toggle('card-wide', GUIDE_VIEWS.indexOf(viewId) !== -1);
   }
+
+  /**
+   * ガイド：開く前の画面を覚えておき、「戻る」でそこに戻る（ガイドからガイドを開いた場合も順に戻る）
+   */
+  const guideReturnStack = [];
+
+  function showGuide(viewId) {
+    resetMenuMessages();
+    const current = ALL_VIEWS.find(id => document.getElementById(id).style.display !== 'none');
+    guideReturnStack.push(current || (sessionId ? 'menu-view' : 'login-view'));
+    showView(viewId);
+    window.scrollTo(0, 0);
+  }
+
+  function closeGuide() {
+    showView(guideReturnStack.pop() || (sessionId ? 'menu-view' : 'login-view'));
+    window.scrollTo(0, 0);
+  }
+
+  // ガイド内のリンク：data-target は見出し・目次へ移動、data-guide は別のガイドを開く
+  document.addEventListener('click', e => {
+    const link = e.target.closest('.guide .help-link');
+    if (!link) return;
+    e.preventDefault();
+    if (link.dataset.target) {
+      document.getElementById(link.dataset.target).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (link.dataset.guide) {
+      showGuide(link.dataset.guide);
+    }
+  });
 
   function handleLogin(e) {
     e.preventDefault();
