@@ -248,12 +248,20 @@
     .help-content { max-width: 900px; font-size: 14px; line-height: 1.7; }
     .help-content h2.help-h1 { font-size: 20px; color: var(--header-color); margin: 0; }
     .help-content .help-meta { font-size: 12px; color: var(--text-muted); margin: 2px 0 16px; }
-    .help-content h3.help-h2 { font-size: 17px; color: var(--header-color); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; margin: 28px 0 10px; }
+    .help-content h3.help-h2 { font-size: 17px; color: var(--header-color); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; margin: 28px 0 2px; }
     .help-content h4.help-h3 { font-size: 15px; color: var(--text-color); margin: 20px 0 8px; }
     .help-content table { margin: 8px 0 12px; }
     .help-content code { background-color: var(--soft-bg); padding: 1px 4px; border-radius: 3px; font-size: 13px; }
     .help-content a { color: var(--link-color); }
     .help-content .help-url { word-break: break-all; }
+    .help-content ul, .help-content ol { padding-left: 20px; }
+    .help-content .guide-back { margin: 0 0 8px; font-size: 12px; text-align: right; }
+    .help-content .guide-toc { background-color: var(--soft-bg); border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
+    .help-content .guide-toc-title { font-weight: bold; margin: 0 0 4px; }
+    .help-content .guide-toc ol { margin: 0; }
+    /* 表は狭い画面では横スクロールにする */
+    .help-content .table-scroll { overflow-x: auto; margin: 8px 0 12px; }
+    .help-content .table-scroll table { margin: 0; min-width: 520px; }
 
     /* 要対応パネル */
     .action-panel { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
@@ -415,201 +423,145 @@
   <!-- 5. ヘルプ（管理者向けFAQ。URLの表はサーバー側の遷移先設定から表示する） -->
   <div id="help-tab" class="tab-content">
     <div class="help-content" id="help-content">
-      <h2 class="help-h1">NJK共通基盤 管理者向けFAQ</h2>
-      <p class="help-meta">Oct 6, 2026</p>
-      <h3 class="help-h2" id="help-sec-1">はじめに</h3>
-      <p>共通基盤は、社員・事業部・部署・所属の情報と、ログインを一元管理する仕組みです。社員は共通基盤にログインし、そこから各システムへ移動します。</p>
-      <h4 class="help-h3" id="help-sec-2">各システムのURL</h4>
+      <h2 class="help-h1">管理者ヘルプ</h2>
+      <nav class="guide-toc" id="help-toc"><p class="guide-toc-title">目次</p><ol>
+      <li><a href="#help-1" class="help-link" data-help-target="help-1">管理者の仕事</a></li>
+      <li><a href="#help-urls" class="help-link" data-help-target="help-urls">各システムのURL</a></li>
+      <li><a href="#help-2" class="help-link" data-help-target="help-2">ホーム（要対応）</a></li>
+      <li><a href="#help-3" class="help-link" data-help-target="help-3">社員を登録する</a></li>
+      <li><a href="#help-4" class="help-link" data-help-target="help-4">社員の情報を変える</a></li>
+      <li><a href="#help-5" class="help-link" data-help-target="help-5">異動・兼務</a></li>
+      <li><a href="#help-6" class="help-link" data-help-target="help-6">退職・休職</a></li>
+      <li><a href="#help-7" class="help-link" data-help-target="help-7">事業部・部署を管理する</a></li>
+      <li><a href="#help-8" class="help-link" data-help-target="help-8">パスワードの困りごと</a></li>
+      <li><a href="#help-9" class="help-link" data-help-target="help-9">管理者を追加・削除する</a></li>
+      <li><a href="#help-10" class="help-link" data-help-target="help-10">してはいけないこと</a></li>
+      <li><a href="#help-11" class="help-link" data-help-target="help-11">画面と項目の説明</a></li>
+      <li><a href="#help-12" class="help-link" data-help-target="help-12">困ったとき</a></li>
+      </ol></nav>
+      <h3 class="help-h2" id="help-1">管理者の仕事</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <p>管理者は、社員と組織の情報を正しく保つ役割を担います。ここで登録した情報は、AP・タスク管理やポータルにも自動で連携されます。</p>
+      <p>管理画面が開けないときは、Chromeを社用アカウント（@j-shelter.com）で開いているか、管理者に登録されているかを確認してください。</p>
+      <h3 class="help-h2" id="help-urls">各システムのURL</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
       <? const helpUrls = getHelpUrls_(); ?>
-      <table class="help-table"><thead><tr><th>システム</th><th>用途</th><th>URL</th></tr></thead><tbody>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>システム</th><th>用途</th><th>URL</th></tr></thead><tbody>
       <tr><td>共通基盤（ログイン画面）</td><td>社員がログインし、各システムへ移動する入口</td><td><a class="help-url" href="<?= helpUrls.login ?>" target="_blank" rel="noopener"><?= helpUrls.login ?></a></td></tr>
       <tr><td>共通基盤（管理画面）</td><td>社員・組織・管理者の管理</td><td><a class="help-url" href="<?= helpUrls.admin ?>" target="_blank" rel="noopener"><?= helpUrls.admin ?></a></td></tr>
       <tr><td>戦略AP（AP・タスク管理）</td><td>戦略・アクションプランの管理</td><td><a class="help-url" href="<?= helpUrls.strategy ?>" target="_blank" rel="noopener"><?= helpUrls.strategy ?></a></td></tr>
       <tr><td>ポータル（人事評価）</td><td>チャレンジ管理・自己評価（準備中）</td><td><a class="help-url" href="<?= helpUrls.jinji ?>" target="_blank" rel="noopener"><?= helpUrls.jinji ?></a></td></tr>
-      </tbody></table>
+      </tbody></table></div>
       <ul>
       <li>社員には、共通基盤のログイン画面のURLだけを案内してください。戦略APやポータルのURLを直接開くと、「共通基盤へ」のリンクが表示されるだけで、ログインはできません。</li>
       <li>URLはデプロイを作り直すと変わります。この表は共通基盤の遷移先設定と共通基盤自身のURLから自動で表示されるため、変わったときは共通基盤の遷移先設定だけを更新してください。</li>
       </ul>
-      <h4 class="help-h3" id="help-sec-3">管理画面の開き方</h4>
-      <p>開けないときは：社用アカウントのChromeプロフィールで開いているか、管理者に登録されているかを確認してください。</p>
-      <h3 class="help-h2" id="help-sec-4">画面と項目の説明</h3>
-      <p>項目の区分は次の5つです。<strong>自動</strong>は入力不要（自動採番・自動記録）、<strong>必須</strong>と<strong>任意</strong>は手入力、<strong>選択式</strong>は一覧から選ぶ項目、<strong>変更不可</strong>は登録後に変えられない項目です。</p>
-      <h4 class="help-h3" id="help-sec-5">ログイン画面（社員用）</h4>
-      <table class="help-table"><thead><tr><th>項目</th><th>区分</th><th>ルール</th></tr></thead><tbody>
-      <tr><td>メールアドレス</td><td>必須</td><td>大文字・小文字は区別しない</td></tr>
-      <tr><td>パスワード</td><td>必須</td><td>5回連続で失敗すると15分間ロック</td></tr>
-      </tbody></table>
+      <h3 class="help-h2" id="help-2">ホーム（要対応）</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <p>管理画面を開くと、最初に「<a href="#" class="help-link" data-tab="home-tab">ホーム</a>」が表示されます。ここには対応が必要なことが並び、タブ名の数字は未対応の件数です。</p>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>一覧</th><th>内容と対応</th></tr></thead><tbody>
+      <tr><td>未対応の問い合わせ</td><td>社員が「システム管理者に連絡」から送った連絡です。対応したら「対応済みにする」を押し、メモを残してください</td></tr>
+      <tr><td>仮パスワードのままの社員</td><td>最初のパスワード変更がまだの社員です。仮パスワードが本人に伝わっているか確認してください</td></tr>
+      <tr><td>無効な所属の社員</td><td>廃止した事業部・部署に所属したままの社員です。「編集」から異動させてください</td></tr>
+      </tbody></table></div>
+      <p>問い合わせが届くと、社員が紐付いている管理者に、その社員のメールアドレス宛てで通知が届きます。</p>
+      <h3 class="help-h2" id="help-3">社員を登録する</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <ol>
+      <li>「<a href="#" class="help-link" data-tab="employee-tab">社員マスタ</a>」タブで「＋ 新規社員登録」を押します。</li>
+      <li>氏名・メールアドレス・所属・在籍状況を入れて登録します。</li>
+      <li>画面に出た仮パスワードを、本人に直接伝えてください。</li>
+      </ol>
+      <p>仮パスワードは画面を閉じると二度と見られません。メールやチャットにも書かないでください。伝え忘れた場合は「PWリセット」で出し直します。</p>
+      <h3 class="help-h2" id="help-4">社員の情報を変える</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <p>社員一覧の「編集」で変えて、「保存」を押してください。社員IDは変えられません。メールアドレスは、ほかの社員と同じものは使えません。</p>
+      <h3 class="help-h2" id="help-5">異動・兼務</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
       <ul>
-      <li>初回ログイン時やPWリセット後は、パスワード変更画面に進みます。新しいパスワードは8文字以上で、社員IDや現在のパスワードと同じものは使えません。</li>
-      <li>ログイン状態は6時間有効です。ページを再読み込みすると、もう一度ログインが必要です。</li>
+      <li><strong>異動</strong>：「編集」で新しい事業部・部署を選び、異動日を入れて保存してください。前の所属は、異動日の前日で終わりになり、記録として残ります。</li>
+      <li><strong>兼務</strong>：「編集」の兼務欄で事業部・部署・開始日を選び、「＋ 追加」を押してください。部署がない場合は「（部署なし）」を選びます。</li>
       </ul>
-      <h4 class="help-h3" id="help-sec-6">ログイン後のメニュー</h4>
-      <table class="help-table"><thead><tr><th>ボタン</th><th>内容</th></tr></thead><tbody>
-      <tr><td>ポータル（準備中）</td><td>ポータル（人事評価）へ移動。今は、管理者として登録された Google アカウントでブラウザにログインしている場合のみ押せます。</td></tr>
-      <tr><td>AP・タスク管理</td><td>戦略APへ移動</td></tr>
-      <tr><td>ログアウト</td><td>ログイン画面に戻る</td></tr>
-      </tbody></table>
-      <h4 class="help-h3" id="help-home">管理画面：ホーム（要対応）</h4>
-      <p>管理画面を開くと「<a href="#" class="help-link" data-tab="home-tab">ホーム</a>」タブが表示されます。ホームには、管理者が対応する必要のあるものが「要対応」としてまとめて表示されます。タブ名の数字は、その合計件数です（0件のときは表示されません）。</p>
-      <table class="help-table"><thead><tr><th>一覧</th><th>内容</th></tr></thead><tbody>
-      <tr><td>未対応の問い合わせ</td><td>ログイン画面・メニューの「システム管理者に連絡」から届いたもの。対応したら「対応済みにする」でメモを残す。「対応済みも表示」で過去の分も見られる</td></tr>
-      <tr><td>仮パスワードのままの社員</td><td>初回ログインやPWリセット後に、まだパスワードを変更していない社員</td></tr>
-      <tr><td>無効な事業部・部署に所属したままの社員</td><td>無効にした事業部・部署に、主所属や兼務が残っている社員</td></tr>
-      </tbody></table>
+      <h3 class="help-h2" id="help-6">退職・休職</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
       <ul>
-      <li>「編集」を押すと、「<a href="#" class="help-link" data-tab="employee-tab">社員マスタ</a>」タブに切り替わり、その社員の編集画面が開きます。</li>
-      <li>通知を受け取れる管理者が1人もいないときは、ホームの最上部に注意が表示されます。「<a href="#" class="help-link" data-tab="admin-tab">管理者設定</a>」タブで、管理者に社員を紐付けてください。</li>
+      <li><strong>退職</strong>：「編集」で在籍状況を「退職」にし、利用終了日を入れて保存してください。退職すると、すべてのシステムにログインできなくなります。画面からは元に戻せないので、よく確認してから行ってください。</li>
+      <li><strong>休職</strong>：在籍状況を「休職」にしてください。休職中もログインはできます。</li>
       </ul>
-      <h4 class="help-h3" id="help-sec-7">管理画面：社員マスタ</h4>
-      <p>一覧には社員ID・氏名・メールアドレス・事業部・部署・在籍状況・利用開始日・有効フラグが並びます。退職者は「退職者も表示」にチェックを入れると表示されます。</p>
-      <p><strong>新規社員登録</strong></p>
-      <table class="help-table"><thead><tr><th>項目</th><th>区分</th><th>ルール</th><th>戦略APに連携されるか</th></tr></thead><tbody>
+      <h3 class="help-h2" id="help-7">事業部・部署を管理する</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <ul>
+      <li><strong>追加</strong>：「＋ 新規事業部登録」または「＋ 新規部署登録」を押して、名前を入れてください。IDは自動で付きます。</li>
+      <li><strong>名前の変更</strong>：一覧の「編集」で変えてください。所属している社員はそのままです。</li>
+      <li><strong>廃止</strong>：削除はせず、「編集」で有効のチェックを外してください。所属している社員がいるときは、先に異動させてください。</li>
+      </ul>
+      <h3 class="help-h2" id="help-8">パスワードの困りごと</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>困りごと</th><th>どうするか</th></tr></thead><tbody>
+      <tr><td>パスワードを忘れた</td><td>本人だと確認してから「PWリセット」を押し、出た仮パスワードを直接伝える</td></tr>
+      <tr><td>「試行回数が上限に達しました」と出た</td><td>15分待ってもらう。急ぐときは「PWリセット」</td></tr>
+      <tr><td>「無効化されているアカウントです」と出た</td><td>システム管理者に連絡する</td></tr>
+      <tr><td>「退職済みのアカウントです」と出た</td><td>在籍状況が間違って退職になっていないか確認する</td></tr>
+      </tbody></table></div>
+      <p>PWリセットをすると、その社員はすべてのシステムから自動でログアウトされます。</p>
+      <h3 class="help-h2" id="help-9">管理者を追加・削除する</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <p>「<a href="#" class="help-link" data-tab="admin-tab">管理者設定</a>」タブで、@j-shelter.com のGoogleアカウントを入れ、その人の社員を選んで「＋ 管理者を追加」を押してください。選んだ社員のメールアドレスに、問い合わせの通知が届きます。削除は一覧の「削除」です。</p>
+      <ul>
+      <li>「固定」と表示された管理者は、管理者が誰もいなくなるのを防ぐため、削除できません。社員を紐付けられないため、通知も届きません。</li>
+      <li>自分自身も削除できません。</li>
+      <li>だれがいつ変えたかは、データ用のスプレッドシート（以下、データSS）の「管理者変更履歴」タブで確認できます。</li>
+      </ul>
+      <h3 class="help-h2" id="help-10">してはいけないこと</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <ul>
+      <li>データSSを直接書き換えないでください。番号の重複や、ほかのシステムの不具合の原因になります。</li>
+      <li>パスワードをどこにも書き残さないでください。</li>
+      <li>GASのコードや設定（スクリプトプロパティ）に触らないでください。</li>
+      <li>データSSの共有範囲を広げないでください。</li>
+      <li>「SSOログイン」で社員の画面を開いたときは、見るだけにして、データを変えないでください。</li>
+      </ul>
+      <h3 class="help-h2" id="help-11">画面と項目の説明</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <p>項目の種類は5つです。</p>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>種類</th><th>意味</th></tr></thead><tbody>
+      <tr><td>自動</td><td>入力しなくてよい。システムが番号や日時を入れる</td></tr>
+      <tr><td>必須</td><td>必ず入れる</td></tr>
+      <tr><td>任意</td><td>入れなくてもよい</td></tr>
+      <tr><td>選択式</td><td>一覧から選ぶ</td></tr>
+      <tr><td>変更不可</td><td>登録したあとは変えられない</td></tr>
+      </tbody></table></div>
+      <p><strong>社員の項目</strong></p>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>項目</th><th>種類</th><th>説明</th><th>他システムへの連携</th></tr></thead><tbody>
       <tr><td>社員ID</td><td>自動・変更不可</td><td>E＋4桁（例：E0024）</td><td>連携される</td></tr>
       <tr><td>氏名</td><td>必須</td><td>—</td><td>連携される</td></tr>
-      <tr><td>メールアドレス</td><td>必須</td><td>小文字で保存。ほかの社員（退職者含む）と重複不可</td><td>連携される</td></tr>
-      <tr><td>主所属 事業部・部署</td><td>任意・選択式</td><td>有効な事業部・部署から選ぶ。未選択なら「所属なし」</td><td>連携される</td></tr>
-      <tr><td>在籍状況</td><td>選択式</td><td>在籍／休職</td><td>連携される</td></tr>
+      <tr><td>メールアドレス</td><td>必須</td><td>ログインに使う。ほかの社員と同じものは不可</td><td>連携される</td></tr>
+      <tr><td>事業部・部署</td><td>任意・選択式</td><td>選ばないと「所属なし」</td><td>連携される</td></tr>
+      <tr><td>在籍状況</td><td>選択式</td><td>在籍／休職／退職</td><td>連携される</td></tr>
       <tr><td>利用開始日</td><td>任意</td><td>空欄なら今日</td><td>連携される</td></tr>
-      <tr><td>利用終了日</td><td>自動</td><td>退職時に設定</td><td>連携される</td></tr>
-      <tr><td>有効フラグ</td><td>自動</td><td>登録時は有効。画面からは変更できない</td><td>連携される</td></tr>
-      <tr><td>パスワード</td><td>自動</td><td>12文字の仮パスワードを発行し、一度だけ表示</td><td>連携されない</td></tr>
-      </tbody></table>
-      <p><strong>社員の編集</strong>：氏名・メールアドレス・主所属（異動）・兼務・在籍状況・利用終了日を変更できます。社員IDは変更できません。主所属を変えるときは異動日が必須です。</p>
-      <h4 class="help-h3" id="help-sec-8">管理画面：事業部マスタ・部署マスタ</h4>
-      <table class="help-table"><thead><tr><th>項目</th><th>区分</th><th>ルール</th></tr></thead><tbody>
+      <tr><td>利用終了日</td><td>自動</td><td>退職するときに入れる</td><td>連携される</td></tr>
+      <tr><td>パスワード</td><td>自動</td><td>仮パスワードを1回だけ表示</td><td>連携されない</td></tr>
+      </tbody></table></div>
+      <p><strong>事業部・部署の項目</strong></p>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>項目</th><th>種類</th><th>説明</th></tr></thead><tbody>
       <tr><td>事業部ID／部署ID</td><td>自動・変更不可</td><td>ORG＋2桁／SEC＋2桁</td></tr>
-      <tr><td>事業部名／部署名</td><td>必須</td><td>重複チェックなし。同じ名前を作らないよう注意</td></tr>
-      <tr><td>所属事業部（部署のみ）</td><td>必須・選択式</td><td>部署がどの事業部に属するか</td></tr>
-      <tr><td>表示順</td><td>任意</td><td>空欄なら10。小さいほど上に表示</td></tr>
-      <tr><td>利用開始日（部署のみ）</td><td>任意</td><td>空欄なら今日</td></tr>
-      <tr><td>有効フラグ</td><td>新規は自動で有効、編集時はチェックボックス</td><td>無効にすると選択肢から消える</td></tr>
-      </tbody></table>
-      <h4 class="help-h3" id="help-sec-9">管理画面：管理者設定</h4>
-      <p>管理者の一覧と、追加・削除ができます。詳しくは「<a href="#help-admin-settings" class="help-link" data-help-target="help-admin-settings">管理者設定</a>」の章を参照してください。</p>
-      <h4 class="help-h3" id="help-sec-10">自動採番の規則</h4>
-      <table class="help-table"><thead><tr><th>対象</th><th>形式</th><th>次の番号</th></tr></thead><tbody>
-      <tr><td>社員ID</td><td>E0001〜</td><td>既存の最大番号＋1</td></tr>
-      <tr><td>事業部ID</td><td>ORG01〜</td><td>既存の最大番号＋1</td></tr>
-      <tr><td>部署ID</td><td>SEC01〜</td><td>既存の最大番号＋1</td></tr>
-      <tr><td>所属履歴ID</td><td>H0001〜</td><td>既存の最大番号＋1</td></tr>
-      </tbody></table>
-      <ul>
-      <li>最大番号の行をシートから消すと、同じIDがもう一度使われます。行は消さず、無効化・退職で対応してください。</li>
-      <li>事業部・部署は99件、社員・所属履歴は9999件が上限です。</li>
-      </ul>
-      <h3 class="help-h2" id="help-sec-11">社員の管理</h3>
-      <p><strong>Q. 新しい社員を登録するには？</strong></p>
+      <tr><td>名前</td><td>必須</td><td>同じ名前を2つ作らないよう注意</td></tr>
+      <tr><td>所属する事業部（部署のみ）</td><td>必須・選択式</td><td>—</td></tr>
+      <tr><td>表示順</td><td>任意</td><td>小さい数ほど上に出る。空欄なら10</td></tr>
+      <tr><td>有効</td><td>新規は自動</td><td>チェックを外すと、選択肢に出なくなる</td></tr>
+      </tbody></table></div>
+      <p>番号（ID）は「今ある一番大きい番号＋1」で自動で付きます。データSSから行を消すと同じ番号がまた使われるので、行は消さないでください。</p>
+      <h3 class="help-h2" id="help-12">困ったとき</h3>
+      <p class="guide-back"><a href="#help-toc" class="help-link" data-help-target="help-toc">目次へ戻る</a></p>
+      <p>このヘルプで解決しないときは、システム管理者に連絡してください。連絡するときは、次の5つを伝えるとスムーズです。</p>
       <ol>
-      <li>管理画面の「<a href="#" class="help-link" data-tab="employee-tab">社員マスタ</a>」で「＋ 新規社員登録」を押してください</li>
-      <li>氏名・メールアドレス・主所属・在籍状況を入力して登録してください</li>
-      <li>表示された仮パスワードを本人に直接伝えてください</li>
-      </ol>
-      <p>仮パスワードはこの画面を閉じると二度と表示されません。メールやチャットにも残さないでください。伝え損ねた場合は「PWリセット」で発行し直してください。</p>
-      <p><strong>Q. 氏名やメールアドレスを変えるには？</strong></p>
-      <p>一覧の「編集」から変更して「保存」を押してください。メールアドレスはほかの社員と重複できません。</p>
-      <p><strong>Q. 異動（主所属の変更）はどうする？</strong></p>
-      <p>「編集」で事業部・部署を選び直し、異動日を入れて保存してください。それまでの主所属は異動日の前日で終了し、履歴として残ります。事業部を「未選択」にすると「所属なし」になります。</p>
-      <p><strong>Q. 兼務を登録するには？</strong></p>
-      <p>「編集」の兼務欄で事業部・部署・開始日を選び「＋ 追加」を押してください。追加はその場で保存されます。兼務の終了・削除は画面からはできないので、必要なときはシステム管理者に依頼してください。</p>
-      <p><strong>Q. 退職処理を行うには？</strong></p>
-      <p>「編集」で在籍状況を「退職」にし、利用終了日を入れて保存してください。確認が2回出ます。</p>
-      <table class="help-table"><thead><tr><th>変わること</th><th>内容</th></tr></thead><tbody>
-      <tr><td>ログイン</td><td>共通基盤・戦略AP・ポータルのすべてにログインできなくなる</td></tr>
-      <tr><td>一覧</td><td>「退職者も表示」にチェックしないと見えなくなる</td></tr>
-      <tr><td>データ</td><td>社員情報・所属履歴は残る</td></tr>
-      <tr><td>取り消し</td><td>画面からは在籍に戻せない</td></tr>
-      </tbody></table>
-      <p>退職は取り消せないので、利用終了日と対象者をよく確認してから実行してください。</p>
-      <p><strong>Q. 休職者はどう扱う？</strong></p>
-      <p>在籍状況を「休職」にしてください。休職中もログインはできます。各システムで評価対象から外すなどの扱いは、それぞれのシステムで判断します。</p>
-      <h3 class="help-h2" id="help-sec-12">組織の管理</h3>
-      <p><strong>Q. 事業部・部署を追加するには？</strong></p>
-      <p>「<a href="#" class="help-link" data-tab="department-tab">事業部マスタ</a>」で「＋ 新規事業部登録」、「<a href="#" class="help-link" data-tab="section-tab">部署マスタ</a>」で「＋ 新規部署登録」を押し、名前と表示順を入れて登録してください。部署の場合は、所属する事業部も選んでください。IDは自動で付きます。</p>
-      <p><strong>Q. 名前を変えるには？</strong></p>
-      <p>一覧の「編集」で変更してください。名前を変えても、IDと所属している社員はそのままです。</p>
-      <p><strong>Q. 事業部・部署を廃止したいときは？</strong></p>
-      <p>「編集」で有効フラグのチェックを外して保存してください。削除はしないでください。</p>
-      <ul>
-      <li>所属している社員がいる場合は、人数が表示されて確認を求められます。</li>
-      <li>無効にすると、新しく登録・異動するときの選択肢から消えます。すでに所属している社員の所属はそのまま残るので、必要に応じて異動させてください。</li>
-      </ul>
-      <p><strong>Q. 所属のない社員はどう表示される？</strong></p>
-      <p>主所属がない社員は「所属なし」、事業部だけで部署がない社員は事業部名だけが表示されます。どちらも正式に扱える状態です。</p>
-      <h3 class="help-h2" id="help-sec-13">パスワード・ログイン</h3>
-      <p><strong>Q. 社員がパスワードを忘れたときは？</strong></p>
-      <ol>
-      <li>本人確認をしてください（電話・対面など）</li>
-      <li>社員一覧のその社員の「PWリセット」を押してください</li>
-      <li>表示された仮パスワードを本人に直接伝えてください</li>
-      </ol>
-      <p>リセットすると、その社員はすべてのシステムからログアウトされ、ロックも解除されます。次のログインでパスワード変更を求められます。</p>
-      <p><strong>Q. 「試行回数が上限に達しました」と表示されたら？</strong></p>
-      <p>5回連続で失敗すると15分間ロックされます。15分待てば再びログインできます。すぐに使いたい場合や、パスワードを忘れている場合は「PWリセット」で解除してください。</p>
-      <p><strong>Q. 初回ログインでパスワード変更を求められるのはなぜ？</strong></p>
-      <p>管理者が発行した仮パスワードのままにしないためです。変更が終わるまで、各システムには進めません。</p>
-      <p><strong>Q. パスワードを変えたら、ほかのシステムからも自動的にログアウトされた</strong></p>
-      <p>仕様です。パスワードを変えると、それ以前のログイン状態はすべて無効になります。ポータルは最大10分遅れて自動的にログアウトされます。新しいパスワードでログインし直してください。</p>
-      <p><strong>Q. ログインできないと社員から連絡があったときの確認順</strong></p>
-      <ol>
-      <li>表示されたメッセージを聞いてください</li>
-      <li>「無効化されているアカウントです」→ 有効フラグが無効です。システム管理者に連絡してください</li>
-      <li>「退職済みのアカウントです」→ 在籍状況が退職になっていないか確認してください</li>
-      <li>「メールアドレスまたはパスワードが間違っています」→ 登録されているメールアドレスと一致しているか確認し、それでもだめなら「PWリセット」を行ってください</li>
-      <li>「試行回数が上限に達しました」→ 15分待つか、「PWリセット」を行ってください</li>
-      </ol>
-      <h3 class="help-h2" id="help-sec-14">各システムへの遷移</h3>
-      <p><strong>Q. ボタンを押しても画面が切り替わらない</strong></p>
-      <p>読み込みに時間がかかっている場合があります。3秒たっても切り替わらなければ「開く」リンクが表示されるので、それを押してください。</p>
-      <p><strong>Q. 「ポータル（準備中）」が押せない</strong></p>
-      <p>ポータルは公開前のため、今は、管理者として登録された Google アカウントでブラウザにログインしている場合のみ押せます。社員が押せないのは正常です。</p>
-      <p><strong>Q. シークレットウィンドウでは開けるのに、通常のウィンドウでは開けない</strong></p>
-      <p>Chromeで複数のGoogleアカウントにログインしていると起きます。社内システムは、社用アカウントだけでログインしたChromeプロフィールで使うよう案内してください。</p>
-      <p><strong>Q. 社員の画面を確認したい（SSOログイン）</strong></p>
-      <p>社員一覧の「SSOログイン」で、その社員として各システムを新しいタブで開けます。問い合わせ対応の確認用です。</p>
-      <ul>
-      <li>その社員として操作したことになるので、データの入力・変更はしないでください。</li>
-      <li>無効・退職の社員には使えません。</li>
-      </ul>
-      <h3 class="help-h2" id="help-admin-settings">管理者設定</h3>
-      <p><strong>Q. 管理者を追加するには？</strong></p>
-      <p>「<a href="#" class="help-link" data-tab="admin-tab">管理者設定</a>」タブでGoogleアカウント（メールアドレス）を入力し、紐付ける社員を選んで「＋ 管理者を追加」を押してください。追加された人は、すぐに管理画面を使えます。登録できるのは @j-shelter.com のアカウントだけです。</p>
-      <p><strong>Q. 問い合わせの通知はだれに届く？</strong></p>
-      <p>社員を紐付けた管理者に、その社員の社員マスタのメールアドレスで届きます。固定管理者と、社員を紐付けていない管理者には届きません。既存の管理者は、一覧の「社員を紐付け」で社員を設定してください。</p>
-      <p><strong>Q. 管理者を削除するには？</strong></p>
-      <p>一覧の「削除」を押し、確認ダイアログで確定してください。削除された人は、すぐに管理画面を使えなくなります。</p>
-      <p><strong>Q. 削除できない管理者がいるのはなぜ？</strong></p>
-      <table class="help-table"><thead><tr><th>表示</th><th>理由</th></tr></thead><tbody>
-      <tr><td>固定（通知なし）</td><td>admin@j-shelter.com。誤操作で管理者が誰もいなくなるのを防ぐため、常に管理者として設定されています。問い合わせの通知は届きません。</td></tr>
-      <tr><td>ログイン中</td><td>自分自身。自分を削除して管理画面を使えなくなるのを防ぐため</td></tr>
-      </tbody></table>
-      <p><strong>Q. 誰がいつ管理者を変えたか確認したい</strong></p>
-      <p>データ用のスプレッドシート（以下、データSS）の「管理者変更履歴」タブに、日時・操作・対象・実行者が記録されています。</p>
-      <h3 class="help-h2" id="help-sec-15">してはいけないこと</h3>
-      <ul>
-      <li><strong>データSSを直接編集しない。</strong> 行の削除や値の書き換えは、採番の重複や各システムの不具合につながります。どうしても必要な場合はシステム管理者に依頼してください。</li>
-      <li><strong>パスワードをどこにも書き残さない。</strong> 仮パスワードをシート・メール・チャットに残すと、誰でもその社員としてログインできてしまいます。</li>
-      <li><strong>スクリプトプロパティやGASのコードに触れない。</strong> APIキーなどが入っており、変更すると各システムが動かなくなります。</li>
-      <li><strong>データSSの共有範囲を広げない。</strong> 共有設定は「制限付き」のまま、必要な人だけに共有してください。</li>
-      <li><strong>SSOログインで社員のデータを操作しない。</strong> 確認のための閲覧だけにとどめてください。</li>
-      </ul>
-      <h3 class="help-h2" id="help-sec-16">困ったとき</h3>
-      <p>このFAQで解決しないときは、システム管理者に連絡してください。</p>
-      <p><strong>連絡するときに伝えること</strong></p>
-      <ol>
-      <li>どの画面か（ログイン画面／メニュー／管理画面のどのタブ）</li>
-      <li>何をしたか（押したボタン、入力した内容。パスワードは伝えない）</li>
-      <li>表示されたメッセージ（画面の写真があれば添付）</li>
+      <li>どの画面か</li>
+      <li>何をしたか（パスワードは伝えない）</li>
+      <li>出たメッセージ（画面の写真があれば添付）</li>
       <li>起きた日時</li>
       <li>対象の社員ID</li>
       </ol>
-      <p><strong>画面からはできないこと（システム管理者に依頼）</strong></p>
-      <ul>
-      <li>有効フラグの切り替え</li>
-      <li>兼務の終了・削除</li>
-      <li>退職の取り消し</li>
-      <li>事業部・部署・社員の削除</li>
-      </ul>
+      <p>画面からできないこと（有効・無効の切り替え、兼務の終了、退職の取り消し、削除）も、システム管理者に頼んでください。</p>
     </div>
   </div>
 </div>
