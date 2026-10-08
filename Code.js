@@ -16,7 +16,8 @@ function getCommonSpreadsheet() {
 const FIXED_ADMIN_EMAILS_ = ['admin@j-shelter.com'];
 const ADMIN_EMAIL_DOMAIN_ = '@j-shelter.com';
 const ADMIN_SHEET_NAME_ = '管理者設定';
-const ADMIN_SHEET_HEADERS_ = ['メールアドレス', '追加日時', '追加者'];
+// D列「社員ID」：問い合わせ通知の宛先（社員マスタのメールアドレス）を引くための紐付け。既存の行は空のまま残す
+const ADMIN_SHEET_HEADERS_ = ['メールアドレス', '追加日時', '追加者', '社員ID'];
 const ADMIN_HISTORY_SHEET_NAME_ = '管理者変更履歴';
 const ADMIN_HISTORY_HEADERS_ = ['日時', '操作', '対象', '実行者'];
 // メニューの「ポータル」（遷移先は人事評価）を準備中として管理者のみに制限する。公開時は false にする
@@ -119,7 +120,7 @@ function getOrCreateSheet_(ss, name, headers) {
 function readAdminRows_(sheet) {
   if (!sheet || sheet.getLastRow() < 2) return [];
   return sheet.getRange(2, 1, sheet.getLastRow() - 1, ADMIN_SHEET_HEADERS_.length).getValues()
-    .map((r, i) => ({ rowNumber: i + 2, email: normalizeEmail_(r[0]), addedAt: r[1], addedBy: r[2] }))
+    .map((r, i) => ({ rowNumber: i + 2, email: normalizeEmail_(r[0]), addedAt: r[1], addedBy: r[2], employeeId: String(r[3] || '').trim() }))
     .filter(r => r.email);
 }
 
@@ -155,7 +156,56 @@ function canUseSystem_(systemKey) {
 }
 
 /**
- * 管理者の追加・削除を管理者変更履歴タブに記録する
+ * 管理者設定タブを取得する（無ければ見出し付きで作成）。
+ * 「社員ID」列の追加前に作られたタブには、D列の見出しだけを追加する（既存の行は空のまま）
+ */
+function getAdminSheet_(ss) {
+  const sheet = getOrCreateSheet_(ss, ADMIN_SHEET_NAME_, ADMIN_SHEET_HEADERS_);
+  const col = ADMIN_SHEET_HEADERS_.length;
+  if (!sheet.getRange(1, col).getValue()) sheet.getRange(1, col).setValue(ADMIN_SHEET_HEADERS_[col - 1]);
+  return sheet;
+}
+
+/**
+ * 管理者に紐付けられる社員か確認して返す（在籍・休職のみ。退職・未登録は例外）
+ */
+function findLinkableEmployee_(employeeId) {
+  const id = String(employeeId || '').trim();
+  if (!id) throw new Error("紐付ける社員を選択してください。");
+  const emp = getEmployeeRecords_().find(e => e.empId === id);
+  if (!emp) throw new Error("指定された社員が見つかりません: " + id);
+  if (emp.status === '退職') throw new Error("退職済みの社員は紐付けできません: " + id);
+  return emp;
+}
+
+/**
+ * 紐付けた社員の状態。ok（通知を受け取れる）／unlinked（未設定）／missing（社員が見つからない）／retired（退職済み）
+ */
+function adminLinkStatus_(employeeId, empMap) {
+  if (!employeeId) return 'unlinked';
+  const emp = empMap[employeeId];
+  if (!emp) return 'missing';
+  return emp.status === '退職' ? 'retired' : 'ok';
+}
+
+/**
+ * 問い合わせ通知の宛先：管理者設定タブで社員が紐付いた管理者の、社員マスタのメールアドレス（小文字化・重複は1件）。
+ * 固定管理者・社員が紐付いていない管理者・退職の社員は除く。isAdmin_ と同じく @j-shelter.com 以外の行は管理者として扱わない
+ * @param {Array} employees getEmployeeRecords_() の結果（省略時は読み込む）
+ */
+function getAdminNotifyEmails_(employees) {
+  const empMap = {};
+  (employees || getEmployeeRecords_()).forEach(e => { empMap[e.empId] = e; });
+  const emails = readAdminRows_(getCommonSpreadsheet().getSheetByName(ADMIN_SHEET_NAME_))
+    .filter(r => r.email.endsWith(ADMIN_EMAIL_DOMAIN_) && !isFixedAdmin_(r.email))
+    .filter(r => adminLinkStatus_(r.employeeId, empMap) === 'ok')
+    .map(r => normalizeEmail_(empMap[r.employeeId].email))
+    .filter(Boolean);
+  return emails.filter((email, i, list) => list.indexOf(email) === i);
+}
+
+/**
+ * 管理者の追加・削除・社員の紐付けを管理者変更履歴タブに記録する
  */
 function recordAdminChange_(ss, operation, targetEmail, actorEmail) {
   getOrCreateSheet_(ss, ADMIN_HISTORY_SHEET_NAME_, ADMIN_HISTORY_HEADERS_)
@@ -164,17 +214,25 @@ function recordAdminChange_(ss, operation, targetEmail, actorEmail) {
 
 /**
  * 管理者一覧（固定管理者を先頭に、削除不可の印 fixed を付ける。self は実行中のアカウント）
- * @return {Array<{email: string, addedAt: string, addedBy: string, fixed: boolean, self: boolean}>}
+ * linkStatus は紐付けた社員の状態（fixed／ok／unlinked／missing／retired。ok 以外は通知を受け取れない）
+ * @return {Array<{email, addedAt, addedBy, employeeId, employeeName, linkStatus, fixed, self}>}
  */
 function getAdmins() {
   const me = assertAdmin_();
-  const sheet = getOrCreateSheet_(getCommonSpreadsheet(), ADMIN_SHEET_NAME_, ADMIN_SHEET_HEADERS_);
+  const sheet = getAdminSheet_(getCommonSpreadsheet());
   const tz = Session.getScriptTimeZone();
-  const fixed = FIXED_ADMIN_EMAILS_.map(email => ({ email: email, addedAt: '', addedBy: '', fixed: true, self: email === me }));
+  const empMap = {};
+  getEmployeeRecords_().forEach(e => { empMap[e.empId] = e; });
+  const fixed = FIXED_ADMIN_EMAILS_.map(email => ({
+    email: email, addedAt: '', addedBy: '', employeeId: '', employeeName: '', linkStatus: 'fixed', fixed: true, self: email === me
+  }));
   const registered = readAdminRows_(sheet).map(r => ({
     email: r.email,
     addedAt: r.addedAt instanceof Date ? Utilities.formatDate(r.addedAt, tz, 'yyyy/MM/dd HH:mm') : String(r.addedAt || ''),
     addedBy: String(r.addedBy || ''),
+    employeeId: r.employeeId,
+    employeeName: empMap[r.employeeId] ? empMap[r.employeeId].name : '',
+    linkStatus: adminLinkStatus_(r.employeeId, empMap),
     fixed: false,
     self: r.email === me
   }));
@@ -182,29 +240,53 @@ function getAdmins() {
 }
 
 /**
- * 管理者を追加する（@j-shelter.com のみ。固定管理者・登録済みとの重複は拒否）
+ * 管理者を追加する（@j-shelter.com のみ。固定管理者・登録済みとの重複は拒否）。
+ * 通知の宛先にするため、在籍・休職の社員の紐付けを必須とする
  */
-function addAdmin(email) {
+function addAdmin(email, employeeId) {
   const me = assertAdmin_();
   const target = normalizeEmail_(email);
   if (!target) throw new Error("メールアドレスを入力してください。");
   if (!ADMIN_EMAIL_PATTERN_.test(target)) throw new Error("メールアドレスの形式が正しくありません。");
   if (!target.endsWith(ADMIN_EMAIL_DOMAIN_)) throw new Error("管理者に登録できるのは " + ADMIN_EMAIL_DOMAIN_ + " のアカウントのみです。");
+  const emp = findLinkableEmployee_(employeeId);
 
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     const ss = getCommonSpreadsheet();
-    const sheet = getOrCreateSheet_(ss, ADMIN_SHEET_NAME_, ADMIN_SHEET_HEADERS_);
+    const sheet = getAdminSheet_(ss);
     if (isFixedAdmin_(target) || readAdminRows_(sheet).some(r => r.email === target)) {
       throw new Error("すでに管理者として登録されています: " + target);
     }
-    sheet.appendRow([target, new Date(), me]);
-    recordAdminChange_(ss, '追加', target, me);
+    sheet.appendRow([target, new Date(), me, emp.empId]);
+    recordAdminChange_(ss, '追加', target + '（社員 ' + emp.empId + ' ' + emp.name + '）', me);
   } finally {
     lock.releaseLock();
   }
   return { success: true, email: target };
+}
+
+/**
+ * 既存の管理者に社員を紐付ける（設定・変更）。固定管理者は対象外。変更は管理者変更履歴に記録する
+ */
+function linkAdminEmployee(email, employeeId) {
+  const me = assertAdmin_();
+  const target = normalizeEmail_(email);
+  if (isFixedAdmin_(target)) throw new Error("固定管理者には社員を紐付けできません。");
+  const emp = findLinkableEmployee_(employeeId);
+
+  return withScriptLock_(() => {
+    const ss = getCommonSpreadsheet();
+    const sheet = getAdminSheet_(ss);
+    const rows = readAdminRows_(sheet).filter(r => r.email === target);
+    if (rows.length === 0) throw new Error("指定された管理者が見つかりません: " + target);
+    const before = rows[0].employeeId;
+    if (before === emp.empId && rows.every(r => r.employeeId === emp.empId)) return { success: true, email: target, employeeId: emp.empId };
+    rows.forEach(r => sheet.getRange(r.rowNumber, ADMIN_SHEET_HEADERS_.length).setValue(emp.empId));
+    recordAdminChange_(ss, '社員の紐付け', target + '：' + (before || '未設定') + ' → ' + emp.empId + '（' + emp.name + '）', me);
+    return { success: true, email: target, employeeId: emp.empId };
+  });
 }
 
 /**
@@ -220,7 +302,7 @@ function removeAdmin(email) {
   lock.waitLock(10000);
   try {
     const ss = getCommonSpreadsheet();
-    const sheet = getOrCreateSheet_(ss, ADMIN_SHEET_NAME_, ADMIN_SHEET_HEADERS_);
+    const sheet = getAdminSheet_(ss);
     const rows = readAdminRows_(sheet).filter(r => r.email === target);
     if (rows.length === 0) throw new Error("指定された管理者が見つかりません: " + target);
     // 下の行から削除して行番号のずれを防ぐ（重複行があればまとめて削除）
@@ -255,16 +337,6 @@ function getHelpUrls_() {
 function toSheetText_(value) {
   const text = String(value === null || value === undefined ? '' : value);
   return /^[=+\-@]/.test(text) ? "'" + text : text;
-}
-
-/**
- * 管理者全員（固定管理者＋管理者設定タブ）のメールアドレス
- */
-function getAdminEmails_() {
-  const registered = readAdminRows_(getCommonSpreadsheet().getSheetByName(ADMIN_SHEET_NAME_))
-    .map(r => r.email)
-    .filter(email => email.endsWith(ADMIN_EMAIL_DOMAIN_));
-  return FIXED_ADMIN_EMAILS_.concat(registered).filter((email, i, list) => list.indexOf(email) === i);
 }
 
 /**
@@ -340,7 +412,8 @@ function generateNewInquiryId_(sheet) {
 }
 
 /**
- * 問い合わせを管理者全員にメールで知らせる（失敗しても受付は取り消さない）
+ * 問い合わせを、社員が紐付いた管理者に、社員マスタのメールアドレスで知らせる（失敗しても受付は取り消さない）。
+ * 宛先が1件もないときは送らずにログに記録する
  */
 function notifyAdminsOfInquiry_(inquiryId, emp, category, text) {
   try {
@@ -356,7 +429,12 @@ function notifyAdminsOfInquiry_(inquiryId, emp, category, text) {
       '',
       '管理画面：' + getHelpUrls_().admin
     ].join('\n');
-    MailApp.sendEmail({ to: getAdminEmails_().join(','), subject: '[NJK] 問い合わせ：' + category, body: body });
+    const recipients = getAdminNotifyEmails_();
+    if (recipients.length === 0) {
+      console.warn('notifyAdminsOfInquiry_: 通知を受け取れる管理者がいないため、通知メールを送りませんでした（受付ID ' + inquiryId + '）');
+      return;
+    }
+    MailApp.sendEmail({ to: recipients.join(','), subject: '[NJK] 問い合わせ：' + category, body: body });
   } catch (e) {
     console.error('notifyAdminsOfInquiry_: 通知メールを送れませんでした（受付ID ' + inquiryId + '）: ' + (e && e.message ? e.message : e));
   }
@@ -367,6 +445,7 @@ function notifyAdminsOfInquiry_(inquiryId, emp, category, text) {
  * - inquiries：問い合わせ（新しい順。対応済みを含む。表示の絞り込みは画面側で行う）
  * - tempPasswordEmployees：仮パスワードのまま（PW変更要がTRUE）の社員（退職・無効は除く）
  * - inactiveOrgEmployees：無効な事業部・部署に主所属・兼務が残っている社員（退職は除く）
+ * - notifiableAdminCount：問い合わせの通知を受け取れる宛先の数（0 のときは画面で注意を出す）
  */
 function getActionItems() {
   assertAdmin_();
@@ -404,7 +483,12 @@ function getActionItems() {
     if (reasons.length) inactiveOrgEmployees.push({ empId: e.empId, name: e.name, reasons: reasons });
   });
 
-  return { inquiries: inquiries, tempPasswordEmployees: tempPasswordEmployees, inactiveOrgEmployees: inactiveOrgEmployees };
+  return {
+    inquiries: inquiries,
+    tempPasswordEmployees: tempPasswordEmployees,
+    inactiveOrgEmployees: inactiveOrgEmployees,
+    notifiableAdminCount: getAdminNotifyEmails_(employees).length
+  };
 }
 
 /**

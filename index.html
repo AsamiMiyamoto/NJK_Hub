@@ -281,6 +281,7 @@
   <!-- 要対応パネル（管理画面を開いたとき最上部に表示） -->
   <section class="action-panel" id="action-panel">
     <h3 class="action-panel-title">要対応</h3>
+    <div id="action-notify-warning" class="warning-box" style="display:none; margin-bottom:8px;">通知を受け取れる管理者がいません。問い合わせのメール通知は送られません。「管理者設定」タブで、管理者に在籍中の社員を紐付けてください。</div>
     <div class="action-group">
       <div class="action-group-head">
         <h4>未対応の問い合わせ</h4>
@@ -382,17 +383,22 @@
   <div id="admin-tab" class="tab-content">
     <div class="action-bar">
       <h3>管理者一覧</h3>
-      <form id="admin-add-form" onsubmit="handleAdminAdd(event)" style="display:flex; gap:8px; align-items:center;">
+      <form id="admin-add-form" onsubmit="handleAdminAdd(event)" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <input type="email" id="admin-add-email" placeholder="name@j-shelter.com" required autocomplete="off"
-          style="width:260px; padding:8px; box-sizing:border-box; border:1px solid var(--input-border); border-radius:4px;">
+          style="width:240px; padding:8px; box-sizing:border-box; border:1px solid var(--input-border); border-radius:4px;">
+        <select id="admin-add-employee" required
+          style="width:220px; padding:8px; box-sizing:border-box; border:1px solid var(--input-border); border-radius:4px;"></select>
         <button type="submit" class="btn-primary" id="admin-add-btn">＋ 管理者を追加</button>
       </form>
     </div>
-    <p style="font-size:13px; color:var(--text-muted); margin:0 0 8px;">登録できるのは @j-shelter.com のアカウントのみです。固定管理者と、ログイン中の自分自身は削除できません。</p>
+    <p style="font-size:13px; color:var(--text-muted); margin:0 0 8px;">登録できるのは @j-shelter.com のGoogleアカウントのみです。問い合わせの通知は、紐付けた社員の社員マスタのメールアドレスに届きます。固定管理者と、ログイン中の自分自身は削除できません。</p>
+    <div id="admin-notify-warning" class="warning-box" style="display:none; margin-bottom:8px;">通知を受け取れない管理者がいます。「社員を紐付け」で、在籍中の社員を設定してください。</div>
     <table>
       <thead>
         <tr>
-          <th>メールアドレス</th>
+          <th>氏名</th>
+          <th>社員ID</th>
+          <th>Googleアカウント</th>
           <th>追加日時</th>
           <th>追加者</th>
           <th>操作</th>
@@ -552,12 +558,14 @@
       </ul>
       <h3 class="help-h2" id="help-admin-settings">管理者設定</h3>
       <p><strong>Q. 管理者を追加するには？</strong></p>
-      <p>「<a href="#" class="help-link" data-tab="admin-tab">管理者設定</a>」タブでメールアドレスを入力し、「＋ 管理者を追加」を押してください。追加された人は、すぐに管理画面を使えます。登録できるのは @j-shelter.com のアカウントだけです。</p>
+      <p>「<a href="#" class="help-link" data-tab="admin-tab">管理者設定</a>」タブでGoogleアカウント（メールアドレス）を入力し、紐付ける社員を選んで「＋ 管理者を追加」を押してください。追加された人は、すぐに管理画面を使えます。登録できるのは @j-shelter.com のアカウントだけです。</p>
+      <p><strong>Q. 問い合わせの通知はだれに届く？</strong></p>
+      <p>社員を紐付けた管理者に、その社員の社員マスタのメールアドレスで届きます。固定管理者と、社員を紐付けていない管理者には届きません。既存の管理者は、一覧の「社員を紐付け」で社員を設定してください。</p>
       <p><strong>Q. 管理者を削除するには？</strong></p>
       <p>一覧の「削除」を押し、確認ダイアログで確定してください。削除された人は、すぐに管理画面を使えなくなります。</p>
       <p><strong>Q. 削除できない管理者がいるのはなぜ？</strong></p>
       <table class="help-table"><thead><tr><th>表示</th><th>理由</th></tr></thead><tbody>
-      <tr><td>固定</td><td>admin@j-shelter.com。誤操作で管理者が誰もいなくなるのを防ぐため、常に管理者として設定されています。</td></tr>
+      <tr><td>固定（通知なし）</td><td>admin@j-shelter.com。誤操作で管理者が誰もいなくなるのを防ぐため、常に管理者として設定されています。問い合わせの通知は届きません。</td></tr>
       <tr><td>ログイン中</td><td>自分自身。自分を削除して管理画面を使えなくなるのを防ぐため</td></tr>
       </tbody></table>
       <p><strong>Q. 誰がいつ管理者を変えたか確認したい</strong></p>
@@ -854,6 +862,30 @@
 </div>
 
 <!-- PWリセット完了モーダル（仮PWは閉じると再表示できない） -->
+<!-- 管理者に社員を紐付けるモーダル -->
+<div id="admin-link-modal" class="modal">
+  <div class="modal-content">
+    <h3>管理者に社員を紐付け</h3>
+    <form id="admin-link-form" onsubmit="handleAdminLinkSubmit(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Googleアカウント</label>
+          <input type="text" id="admin-link-email" readonly style="background-color: var(--readonly-bg);">
+        </div>
+        <div class="form-group">
+          <label>社員 <span style="color:var(--danger-color)">*</span></label>
+          <select id="admin-link-employee" required></select>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">問い合わせの通知は、この社員の社員マスタのメールアドレスに届きます。在籍・休職の社員から選べます。</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeAdminLinkModal()">キャンセル</button>
+        <button type="submit" class="btn-primary" id="admin-link-submit-btn">保存する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- 問い合わせを対応済みにするモーダル -->
 <div id="inquiry-resolve-modal" class="modal">
   <div class="modal-content">
@@ -964,6 +996,8 @@
 
   function renderActionItems() {
     if (!cachedActionItems) return;
+    document.getElementById('action-notify-warning').style.display =
+      cachedActionItems.notifiableAdminCount === 0 ? 'block' : 'none';
     const showResolved = document.getElementById('show-resolved-inquiries').checked;
     const inquiries = cachedActionItems.inquiries.filter(q => showResolved || q.status !== '対応済み');
     renderActionTable_('action-inquiries', ['受付日時', '氏名', '用件', '内容', '操作'], inquiries, (tr, q) => {
@@ -1112,6 +1146,8 @@
   function renderEmployeeTable(data) {
     cachedEmployees = data || [];
     renderEmployeeRows();
+    const adminEmployeeSelect = document.getElementById('admin-add-employee');
+    fillAdminEmployeeOptions_(adminEmployeeSelect, adminEmployeeSelect.value);
   }
 
   function renderEmployeeRows() {
@@ -1152,39 +1188,89 @@
     loadMaster_('管理者', 'getAdmins', renderAdminTable);
   }
 
+  // 紐付けた社員の状態（linkStatus）ごとの表示。ok 以外は通知を受け取れない
+  const ADMIN_LINK_LABELS = { unlinked: '社員未設定（通知なし）', missing: '社員が見つかりません（通知なし）', retired: '退職済み（通知なし）' };
+
   function renderAdminTable(data) {
     const tbody = document.getElementById('admin-list');
     tbody.innerHTML = '';
-    if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4">データがありません</td></tr>';
+    const admins = data || [];
+    document.getElementById('admin-notify-warning').style.display =
+      admins.some(a => !a.fixed && a.linkStatus !== 'ok') ? 'block' : 'none';
+    if (admins.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6">データがありません</td></tr>';
       return;
     }
-    data.forEach(admin => {
-      const tr = document.createElement('tr');
-      const emailTd = document.createElement('td');
-      emailTd.textContent = admin.email + ' ';
-      if (admin.fixed) emailTd.appendChild(makeBadge_('固定', 'badge-main'));
+    admins.forEach(admin => {
+      const tr = tbody.insertRow();
+      const nameTd = addCell_(tr, admin.fixed ? '' : admin.employeeName);
+      if (admin.fixed) {
+        nameTd.appendChild(makeBadge_('固定（通知なし）', 'badge-main'));
+      } else if (admin.linkStatus !== 'ok') {
+        if (admin.employeeName) nameTd.appendChild(document.createElement('br'));
+        nameTd.appendChild(makeBadge_(ADMIN_LINK_LABELS[admin.linkStatus] || '通知なし', 'badge-inactive'));
+      }
+      addCell_(tr, admin.employeeId || '-');
+      const emailTd = addCell_(tr, admin.email + ' ');
       if (admin.self) emailTd.appendChild(makeBadge_('ログイン中', 'badge-active'));
-      tr.appendChild(emailTd);
-      [admin.addedAt || '-', admin.addedBy || '-'].forEach(text => {
-        const td = document.createElement('td');
-        td.textContent = text;
-        tr.appendChild(td);
-      });
-      const opTd = document.createElement('td');
-      if (admin.fixed || admin.self) {
-        opTd.textContent = '削除不可';
+      addCell_(tr, admin.addedAt || '-');
+      addCell_(tr, admin.addedBy || '-');
+      const opTd = addCell_(tr, '');
+      if (admin.fixed) {
+        opTd.textContent = '変更不可';
         opTd.style.color = 'var(--text-muted)';
       } else {
-        const btn = document.createElement('button');
-        btn.className = 'btn-danger btn-sm';
-        btn.textContent = '削除';
-        btn.addEventListener('click', () => handleAdminRemove(admin.email, btn));
-        opTd.appendChild(btn);
+        opTd.appendChild(makeButton_('社員を紐付け', 'btn-secondary btn-sm', () => openAdminLinkModal(admin)));
+        if (admin.self) {
+          opTd.appendChild(makeText_('span', '削除不可', 'action-meta'));
+        } else {
+          const btn = makeButton_('削除', 'btn-danger btn-sm', () => handleAdminRemove(admin.email, btn));
+          opTd.appendChild(btn);
+        }
       }
-      tr.appendChild(opTd);
-      tbody.appendChild(tr);
     });
+  }
+
+  // 管理者に紐付けられる社員（在籍・休職）の選択肢。社員一覧の読み込み後に作り直す
+  function fillAdminEmployeeOptions_(select, selectedId) {
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- 社員を選択 --';
+    select.appendChild(placeholder);
+    cachedEmployees.filter(e => e.status !== '退職').forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.empId;
+      opt.textContent = e.empId + ' : ' + e.name;
+      select.appendChild(opt);
+    });
+    select.value = selectedId || '';
+  }
+
+  function openAdminLinkModal(admin) {
+    document.getElementById('admin-link-email').value = admin.email;
+    fillAdminEmployeeOptions_(document.getElementById('admin-link-employee'), admin.linkStatus === 'ok' ? admin.employeeId : '');
+    document.getElementById('admin-link-modal').style.display = 'flex';
+  }
+
+  function closeAdminLinkModal() {
+    document.getElementById('admin-link-modal').style.display = 'none';
+    document.getElementById('admin-link-form').reset();
+  }
+
+  function handleAdminLinkSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('admin-link-submit-btn');
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(() => {
+        btn.disabled = false;
+        closeAdminLinkModal();
+        loadAdmins();
+        loadMaster_('要対応', 'getActionItems', renderActionItemsData);
+      })
+      .withFailureHandler(err => { alert('紐付け失敗: ' + err.message); btn.disabled = false; })
+      .linkAdminEmployee(document.getElementById('admin-link-email').value, document.getElementById('admin-link-employee').value);
   }
 
   function makeBadge_(text, badgeClass) {
@@ -1197,6 +1283,7 @@
   function handleAdminAdd(e) {
     e.preventDefault();
     const input = document.getElementById('admin-add-email');
+    const employeeSelect = document.getElementById('admin-add-employee');
     const btn = document.getElementById('admin-add-btn');
     btn.disabled = true;
     google.script.run
@@ -1204,10 +1291,12 @@
         alert('管理者に追加しました: ' + res.email);
         btn.disabled = false;
         input.value = '';
+        employeeSelect.value = '';
         loadAdmins();
+        loadMaster_('要対応', 'getActionItems', renderActionItemsData);
       })
       .withFailureHandler(err => { alert('追加失敗: ' + err.message); btn.disabled = false; })
-      .addAdmin(input.value);
+      .addAdmin(input.value, employeeSelect.value);
   }
 
   function handleAdminRemove(email, btn) {
