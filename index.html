@@ -254,6 +254,19 @@
     .help-content code { background-color: var(--soft-bg); padding: 1px 4px; border-radius: 3px; font-size: 13px; }
     .help-content a { color: var(--link-color); }
     .help-content .help-url { word-break: break-all; }
+
+    /* 要対応パネル */
+    .action-panel { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
+    .action-panel-title { margin: 0 0 4px; font-size: 16px; color: var(--header-color); }
+    .action-group { margin-top: 12px; }
+    .action-group h4 { margin: 0 0 6px; font-size: 14px; }
+    .action-group-head { display: flex; justify-content: space-between; align-items: center; }
+    .action-toggle { font-size: 13px; font-weight: normal; }
+    .action-empty { margin: 0; font-size: 13px; color: var(--text-muted); }
+    .action-panel table { margin-top: 0; }
+    .action-panel .action-pre { white-space: pre-wrap; word-break: break-word; }
+    .action-panel .action-meta { font-size: 12px; color: var(--text-muted); }
+    .form-group textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid var(--input-border); border-radius: 4px; min-height: 100px; resize: vertical; font-family: inherit; }
   </style>
 </head>
 <body>
@@ -264,6 +277,26 @@
   </header>
 
   <div id="load-error" class="warning-box" style="display:none; white-space:pre-line;"></div>
+
+  <!-- 要対応パネル（管理画面を開いたとき最上部に表示） -->
+  <section class="action-panel" id="action-panel">
+    <h3 class="action-panel-title">要対応</h3>
+    <div class="action-group">
+      <div class="action-group-head">
+        <h4>未対応の問い合わせ</h4>
+        <label class="action-toggle"><input type="checkbox" id="show-resolved-inquiries" onchange="renderActionItems()"> 対応済みも表示</label>
+      </div>
+      <div id="action-inquiries"><p class="action-empty">読み込んでいます…</p></div>
+    </div>
+    <div class="action-group">
+      <h4>仮パスワードのままの社員</h4>
+      <div id="action-temp-pw"><p class="action-empty">読み込んでいます…</p></div>
+    </div>
+    <div class="action-group">
+      <h4>無効な事業部・部署に所属したままの社員</h4>
+      <div id="action-inactive-org"><p class="action-empty">読み込んでいます…</p></div>
+    </div>
+  </section>
 
   <!-- タブナビゲーション -->
   <ul class="nav-tabs">
@@ -821,6 +854,29 @@
 </div>
 
 <!-- PWリセット完了モーダル（仮PWは閉じると再表示できない） -->
+<!-- 問い合わせを対応済みにするモーダル -->
+<div id="inquiry-resolve-modal" class="modal">
+  <div class="modal-content">
+    <h3>問い合わせを対応済みにする</h3>
+    <form id="inquiry-resolve-form" onsubmit="handleInquiryResolveSubmit(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>問い合わせ</label>
+          <input type="text" id="inquiry-resolve-info" readonly style="background-color: var(--readonly-bg);">
+        </div>
+        <div class="form-group">
+          <label>対応メモ <span style="color:var(--danger-color)">*</span></label>
+          <textarea id="inquiry-resolve-memo" required maxlength="2000" placeholder="例：電話で本人確認のうえ、PWリセットして仮パスワードを伝えた"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeInquiryResolveModal()">キャンセル</button>
+        <button type="submit" class="btn-primary" id="inquiry-resolve-submit-btn">対応済みにする</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="temp-pw-modal" class="modal">
   <div class="modal-content">
     <h3 id="temp-pw-title"></h3>
@@ -894,6 +950,128 @@
     loadMaster_('部署', 'getSections', renderSectionTable);
     loadMaster_('社員', 'getEmployeeDataForWeb', renderEmployeeTable);
     loadMaster_('所属履歴', 'getAssignments', renderHistoryTable);
+    loadMaster_('要対応', 'getActionItems', renderActionItemsData);
+  }
+
+  // ---------------- 要対応パネル（値はすべて textContent で表示する） ----------------
+  let cachedActionItems = null;
+  let resolvingInquiryId = null;
+
+  function renderActionItemsData(data) {
+    cachedActionItems = data;
+    renderActionItems();
+  }
+
+  function renderActionItems() {
+    if (!cachedActionItems) return;
+    const showResolved = document.getElementById('show-resolved-inquiries').checked;
+    const inquiries = cachedActionItems.inquiries.filter(q => showResolved || q.status !== '対応済み');
+    renderActionTable_('action-inquiries', ['受付日時', '氏名', '用件', '内容', '操作'], inquiries, (tr, q) => {
+      addCell_(tr, q.receivedAt);
+      const nameTd = addCell_(tr, q.name);
+      nameTd.appendChild(document.createElement('br'));
+      nameTd.appendChild(makeText_('span', q.employeeId + ' / ' + q.email, 'action-meta'));
+      addCell_(tr, q.category);
+      addCell_(tr, q.content || '（なし）').className = 'action-pre';
+      const opTd = addCell_(tr, '');
+      if (q.status === '対応済み') {
+        opTd.appendChild(makeBadge_('対応済み', 'badge-active'));
+        opTd.appendChild(document.createElement('br'));
+        opTd.appendChild(makeText_('span', q.handledBy + '（' + q.handledAt + '）', 'action-meta'));
+        opTd.appendChild(makeText_('div', q.memo, 'action-pre action-meta'));
+      } else {
+        opTd.appendChild(makeButton_('対応済みにする', 'btn-primary btn-sm', () => openInquiryResolveModal(q)));
+      }
+    });
+    renderActionTable_('action-temp-pw', ['社員ID', '氏名', '操作'], cachedActionItems.tempPasswordEmployees, (tr, e) => {
+      addCell_(tr, e.empId);
+      addCell_(tr, e.name);
+      addCell_(tr, '').appendChild(makeButton_('編集', 'btn-secondary btn-sm', () => openEmployeeFromActionPanel_(e.empId)));
+    });
+    renderActionTable_('action-inactive-org', ['社員ID', '氏名', '理由', '操作'], cachedActionItems.inactiveOrgEmployees, (tr, e) => {
+      addCell_(tr, e.empId);
+      addCell_(tr, e.name);
+      addCell_(tr, e.reasons.join('\n')).className = 'action-pre';
+      addCell_(tr, '').appendChild(makeButton_('編集', 'btn-secondary btn-sm', () => openEmployeeFromActionPanel_(e.empId)));
+    });
+  }
+
+  // 該当がなければ「対応が必要なものはありません」を表示する
+  function renderActionTable_(containerId, headers, items, fillRow) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if (!items || items.length === 0) {
+      container.appendChild(makeText_('p', '対応が必要なものはありません', 'action-empty'));
+      return;
+    }
+    const table = document.createElement('table');
+    const headRow = table.createTHead().insertRow();
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      headRow.appendChild(th);
+    });
+    const tbody = table.createTBody();
+    items.forEach(item => fillRow(tbody.insertRow(), item));
+    container.appendChild(table);
+  }
+
+  function addCell_(tr, text) {
+    const td = tr.insertCell();
+    td.textContent = text;
+    return td;
+  }
+
+  function makeText_(tag, text, className) {
+    const el = document.createElement(tag);
+    el.textContent = text;
+    if (className) el.className = className;
+    return el;
+  }
+
+  function makeButton_(label, className, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = className;
+    btn.textContent = label;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function openEmployeeFromActionPanel_(empId) {
+    if (!cachedEmployees.some(e => e.empId === empId)) {
+      alert('社員一覧を読み込み中です。少し待ってから、もう一度押してください。');
+      return;
+    }
+    openEmployeeEditModal(empId);
+  }
+
+  function openInquiryResolveModal(inquiry) {
+    resolvingInquiryId = inquiry.id;
+    document.getElementById('inquiry-resolve-info').value = inquiry.id + '：' + inquiry.name + '（' + inquiry.category + '）';
+    document.getElementById('inquiry-resolve-memo').value = '';
+    document.getElementById('inquiry-resolve-modal').style.display = 'flex';
+  }
+
+  function closeInquiryResolveModal() {
+    resolvingInquiryId = null;
+    document.getElementById('inquiry-resolve-modal').style.display = 'none';
+    document.getElementById('inquiry-resolve-form').reset();
+  }
+
+  function handleInquiryResolveSubmit(e) {
+    e.preventDefault();
+    if (!resolvingInquiryId) return;
+    const btn = document.getElementById('inquiry-resolve-submit-btn');
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(() => {
+        btn.disabled = false;
+        closeInquiryResolveModal();
+        loadMaster_('要対応', 'getActionItems', renderActionItemsData);
+      })
+      .withFailureHandler(err => { alert('更新失敗: ' + err.message); btn.disabled = false; })
+      .resolveInquiry(resolvingInquiryId, document.getElementById('inquiry-resolve-memo').value);
   }
 
   // 読み込みに失敗した場合（サーバーエラー・データを受け取れない場合）は画面上部に表示する

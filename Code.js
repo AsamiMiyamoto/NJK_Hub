@@ -362,6 +362,74 @@ function notifyAdminsOfInquiry_(inquiryId, emp, category, text) {
   }
 }
 
+/**
+ * 管理画面「要対応」パネルのデータ（管理者のみ）
+ * - inquiries：問い合わせ（新しい順。対応済みを含む。表示の絞り込みは画面側で行う）
+ * - tempPasswordEmployees：仮パスワードのまま（PW変更要がTRUE）の社員（退職・無効は除く）
+ * - inactiveOrgEmployees：無効な事業部・部署に主所属・兼務が残っている社員（退職は除く）
+ */
+function getActionItems() {
+  assertAdmin_();
+  const tz = Session.getScriptTimeZone();
+  const fmt = v => v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy/MM/dd HH:mm') : String(v || '');
+
+  const inquirySheet = getCommonSpreadsheet().getSheetByName(INQUIRY_SHEET_NAME_);
+  const inquiryRows = (inquirySheet && inquirySheet.getLastRow() >= 2)
+    ? inquirySheet.getRange(2, 1, inquirySheet.getLastRow() - 1, INQUIRY_HEADERS_.length).getValues()
+    : [];
+  const inquiries = inquiryRows.filter(r => r[0]).map(r => ({
+    id: String(r[0]), receivedAt: fmt(r[1]), employeeId: String(r[2] || ''), name: String(r[3] || ''),
+    email: String(r[4] || ''), category: String(r[5] || ''), content: String(r[6] || ''),
+    status: String(r[7] || INQUIRY_STATUS_OPEN_), handledBy: String(r[8] || ''), handledAt: fmt(r[9]), memo: String(r[10] || '')
+  })).reverse();
+
+  const employees = getEmployeeRecords_().filter(e => e.status !== '退職');
+  const tempPasswordEmployees = employees
+    .filter(e => e.mustChangePassword && e.isValid === '有効')
+    .map(e => ({ empId: e.empId, name: e.name }));
+
+  const deptActive = {};
+  getDepartments_().forEach(d => { deptActive[d.id] = d.active; });
+  const secActive = {};
+  getSections_().forEach(sec => { secActive[sec.id] = sec.active; });
+  const inactiveOrgEmployees = [];
+  employees.forEach(e => {
+    const reasons = [];
+    const check = (label, deptId, secId, deptName, secName) => {
+      if (deptId && deptActive[deptId] === false) reasons.push(label + '：事業部「' + deptName + '」が無効');
+      if (secId && secActive[secId] === false) reasons.push(label + '：部署「' + secName + '」が無効');
+    };
+    check('主所属', e.departmentId, e.sectionId, e.departmentName, e.sectionName);
+    e.concurrentAssignments.forEach(c => check('兼務', c.departmentId, c.sectionId, c.departmentName, c.sectionName));
+    if (reasons.length) inactiveOrgEmployees.push({ empId: e.empId, name: e.name, reasons: reasons });
+  });
+
+  return { inquiries: inquiries, tempPasswordEmployees: tempPasswordEmployees, inactiveOrgEmployees: inactiveOrgEmployees };
+}
+
+/**
+ * 問い合わせを対応済みにする（管理者のみ）。対応者・対応日時は自動で記録する
+ */
+function resolveInquiry(inquiryId, memo) {
+  const me = assertAdmin_();
+  const text = String(memo || '').trim();
+  if (!inquiryId) throw new Error("受付IDが指定されていません。");
+  if (!text) throw new Error("対応メモを入力してください。");
+  if (text.length > INQUIRY_CONTENT_MAX_) throw new Error("対応メモは" + INQUIRY_CONTENT_MAX_ + "文字以内で入力してください。");
+
+  return withScriptLock_(() => {
+    const sheet = getCommonSpreadsheet().getSheetByName(INQUIRY_SHEET_NAME_);
+    if (!sheet || sheet.getLastRow() < 2) throw new Error("指定された問い合わせが見つかりません: " + inquiryId);
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues();
+    const index = rows.findIndex(r => String(r[0]) === String(inquiryId));
+    if (index < 0) throw new Error("指定された問い合わせが見つかりません: " + inquiryId);
+    if (rows[index][7] === INQUIRY_STATUS_DONE_) throw new Error("この問い合わせはすでに対応済みです。");
+    // H〜K列：状態／対応者／対応日時／対応メモ
+    sheet.getRange(index + 2, 8, 1, 4).setValues([[INQUIRY_STATUS_DONE_, me, new Date(), toSheetText_(text)]]);
+    return { success: true, id: String(inquiryId) };
+  });
+}
+
 function doGet(e) {
   const isAdminRequest = e && e.parameter && e.parameter.admin === 'true';
 
