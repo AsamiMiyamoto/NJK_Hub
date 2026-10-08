@@ -29,6 +29,19 @@ const SYSTEM_URLS_ = {
   jinji: 'https://script.google.com/macros/s/AKfycbyqGY8dPwXWB3vVOmaN2Eu9ZHWRqzwlK4VlZ01aVlURj4N1uPCnV7Iin14hPCd9SMnG/exec'
 };
 
+// 「システム管理者に連絡」（問い合わせ）
+const INQUIRY_SHEET_NAME_ = '問い合わせ';
+const INQUIRY_HEADERS_ = ['受付ID', '受付日時', '社員ID', '氏名', 'メールアドレス', '用件', '内容', '状態', '対応者', '対応日時', '対応メモ'];
+const INQUIRY_CATEGORIES_ = ['パスワードを忘れた', 'ロックされた', '社員情報の登録・変更', 'その他'];
+const INQUIRY_CONTENT_REQUIRED_ = ['社員情報の登録・変更', 'その他'];
+const INQUIRY_CONTENT_MAX_ = 2000;
+const INQUIRY_STATUS_OPEN_ = '未対応';
+const INQUIRY_STATUS_DONE_ = '対応済み';
+// 送信回数の制限（同じメールアドレスで1時間に3回まで。キーは 接頭辞＋SHA-256(小文字化したメールアドレス)）
+const INQUIRY_RATE_PREFIX_ = 'inquiryrate_';
+const INQUIRY_RATE_LIMIT_ = 3;
+const INQUIRY_RATE_WINDOW_SEC_ = 3600;
+
 // 先頭は英数字に限る（=・+・- で始まる値はシートで数式として扱われるため）
 const ADMIN_EMAIL_PATTERN_ = /^[a-z0-9][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}$/;
 
@@ -232,6 +245,123 @@ function getHelpUrls_() {
   };
 }
 
+// ----------------------------------------------------
+// 問い合わせ（システム管理者に連絡）
+// ----------------------------------------------------
+
+/**
+ * 利用者が入力した文字列をシートに書き込む前の処理（=・+・-・@ で始まる値が数式として扱われないようにする）
+ */
+function toSheetText_(value) {
+  const text = String(value === null || value === undefined ? '' : value);
+  return /^[=+\-@]/.test(text) ? "'" + text : text;
+}
+
+/**
+ * 管理者全員（固定管理者＋管理者設定タブ）のメールアドレス
+ */
+function getAdminEmails_() {
+  const registered = readAdminRows_(getCommonSpreadsheet().getSheetByName(ADMIN_SHEET_NAME_))
+    .map(r => r.email)
+    .filter(email => email.endsWith(ADMIN_EMAIL_DOMAIN_));
+  return FIXED_ADMIN_EMAILS_.concat(registered).filter((email, i, list) => list.indexOf(email) === i);
+}
+
+/**
+ * 送信回数の制限。同じメールアドレスで INQUIRY_RATE_WINDOW_SEC_ 秒に INQUIRY_RATE_LIMIT_ 回まで。
+ * 最初の送信から数えた固定の時間枠で数える。上限を超えた場合は false
+ */
+function consumeInquiryQuota_(email) {
+  const cache = CacheService.getScriptCache();
+  const key = INQUIRY_RATE_PREFIX_ + computeHash_(email);
+  const now = Date.now();
+  const saved = JSON.parse(cache.get(key) || 'null');
+  const state = (saved && now - saved.firstAt < INQUIRY_RATE_WINDOW_SEC_ * 1000) ? saved : { count: 0, firstAt: now };
+  if (state.count >= INQUIRY_RATE_LIMIT_) return false;
+  state.count++;
+  const remainingSec = Math.max(1, Math.ceil(INQUIRY_RATE_WINDOW_SEC_ - (now - state.firstAt) / 1000));
+  cache.put(key, JSON.stringify(state), remainingSec);
+  return true;
+}
+
+/**
+ * ログイン画面・メニューの「システム管理者に連絡」からの送信を受け付ける（ログイン不要）。
+ * メールアドレスを小文字化して社員マスタと照合し、一致して退職でない場合のみ保存・通知する（無効の社員は受け付ける）。
+ * 登録の有無を推測させないため、未登録・送信回数超過・保存時のエラーでも結果は常に同じにする。
+ * 入力の形式エラー（必須の未入力など）だけは例外で知らせる。
+ * @return {{success: boolean}}
+ */
+function submitInquiry(email, category, content) {
+  const normalizedEmail = normalizeEmail_(email);
+  const text = String(content || '').trim();
+  if (!normalizedEmail) throw new Error("メールアドレスを入力してください。");
+  if (INQUIRY_CATEGORIES_.indexOf(category) === -1) throw new Error("用件を選択してください。");
+  if (INQUIRY_CONTENT_REQUIRED_.indexOf(category) !== -1 && !text) throw new Error("内容を入力してください。");
+  if (text.length > INQUIRY_CONTENT_MAX_) throw new Error("内容は" + INQUIRY_CONTENT_MAX_ + "文字以内で入力してください。");
+
+  const result = { success: true };
+  try {
+    if (!consumeInquiryQuota_(normalizedEmail)) {
+      console.warn('submitInquiry: 送信回数の上限に達したため受け付けませんでした');
+      return result;
+    }
+    const emp = getEmployeeRecords_().find(e => normalizeEmail_(e.email) === normalizedEmail);
+    if (!emp || emp.status === '退職') return result;
+
+    const ss = getCommonSpreadsheet();
+    const inquiryId = withScriptLock_(() => {
+      const sheet = getOrCreateSheet_(ss, INQUIRY_SHEET_NAME_, INQUIRY_HEADERS_);
+      const id = generateNewInquiryId_(sheet);
+      sheet.appendRow([id, new Date(), emp.empId, emp.name, normalizedEmail, category, toSheetText_(text), INQUIRY_STATUS_OPEN_, '', '', '']);
+      return id;
+    });
+    notifyAdminsOfInquiry_(inquiryId, emp, category, text);
+  } catch (e) {
+    console.error('submitInquiry: 受付処理でエラーが発生しました: ' + (e && e.message ? e.message : e));
+  }
+  return result;
+}
+
+/**
+ * 受付IDの採番（Q＋4桁、既存の最大番号＋1）。呼び出し側でロックを取ること
+ */
+function generateNewInquiryId_(sheet) {
+  let maxNum = 0;
+  if (sheet.getLastRow() >= 2) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().forEach(r => {
+      const id = String(r[0] || '');
+      if (id.startsWith('Q')) {
+        const num = parseInt(id.substring(1), 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    });
+  }
+  return 'Q' + ('0000' + (maxNum + 1)).slice(-4);
+}
+
+/**
+ * 問い合わせを管理者全員にメールで知らせる（失敗しても受付は取り消さない）
+ */
+function notifyAdminsOfInquiry_(inquiryId, emp, category, text) {
+  try {
+    const body = [
+      'システム管理者への問い合わせを受け付けました。',
+      '',
+      '受付ID：' + inquiryId,
+      '氏名：' + emp.name,
+      '社員ID：' + emp.empId,
+      '用件：' + category,
+      '内容：',
+      text || '（なし）',
+      '',
+      '管理画面：' + getHelpUrls_().admin
+    ].join('\n');
+    MailApp.sendEmail({ to: getAdminEmails_().join(','), subject: '[NJK] 問い合わせ：' + category, body: body });
+  } catch (e) {
+    console.error('notifyAdminsOfInquiry_: 通知メールを送れませんでした（受付ID ' + inquiryId + '）: ' + (e && e.message ? e.message : e));
+  }
+}
+
 function doGet(e) {
   const isAdminRequest = e && e.parameter && e.parameter.admin === 'true';
 
@@ -395,6 +525,7 @@ function buildLoginResult_(emp, sessionCreatedAt) {
     name: emp.name,
     departmentName: emp.departmentName,
     sectionName: emp.sectionName,
+    email: emp.email,
     sessionId: createSession_(emp.empId, sessionCreatedAt),
     portalEnabled: canUseSystem_(PORTAL_SYSTEM_KEY_),
     portalPreparing: PORTAL_ADMIN_ONLY_

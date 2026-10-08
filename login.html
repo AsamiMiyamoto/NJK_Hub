@@ -185,6 +185,29 @@
     .form-group input[readonly] { background-color: var(--readonly-bg); }
 
     #menu-error { margin-top: 0; }
+
+    /* システム管理者に連絡 */
+    .contact-title { font-size: 16px; margin: 0 0 12px 0; text-align: center; }
+    .contact-warning {
+      background-color: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      color: var(--warn-color);
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    .form-group textarea { min-height: 120px; resize: vertical; }
+    .contact-done { text-align: center; font-size: 14px; margin: 8px 0 4px; }
     .notice a { color: var(--link-color); font-weight: bold; }
   </style>
 </head>
@@ -210,6 +233,7 @@
         <div class="forgot-note">パスワードがわからない場合は、管理者にリセットを依頼してください</div>
       </form>
       <span class="logout-link" onclick="showChangeView(false)">パスワードを変更する</span>
+      <span class="logout-link" onclick="showContactView()">システム管理者に連絡</span>
     </div>
 
     <!-- パスワード変更フォーム（強制変更・任意変更 共通） -->
@@ -252,7 +276,46 @@
       </div>
       <button type="button" class="btn-dest" id="portal-btn" onclick="goToSystem('jinji', this)" disabled>ポータル（準備中）</button>
       <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理</button>
+      <button type="button" class="btn-dest" onclick="showContactView()">システム管理者に連絡</button>
       <span class="logout-link" onclick="backToLogin()">ログアウト</span>
+    </div>
+
+    <!-- システム管理者に連絡（ログイン前はメールアドレスを入力、ログイン後は自動入力） -->
+    <div id="contact-view" style="display:none;">
+      <h3 class="contact-title">システム管理者に連絡</h3>
+      <div id="contact-form-area">
+        <div class="contact-warning">パスワードは書かないでください。</div>
+        <div class="error-message" id="contact-error"></div>
+        <form id="contact-form" onsubmit="handleContactSubmit(event)">
+          <div class="form-group">
+            <label>メールアドレス（ログインに使うもの）</label>
+            <input type="email" id="contact-email" required autocomplete="username">
+          </div>
+          <div class="form-group" id="contact-name-group" style="display:none;">
+            <label>氏名</label>
+            <input type="text" id="contact-name" readonly>
+          </div>
+          <div class="form-group">
+            <label>用件</label>
+            <select id="contact-category" required onchange="updateContactContentRequired()">
+              <option value="">-- 選択 --</option>
+              <option value="パスワードを忘れた">パスワードを忘れた</option>
+              <option value="ロックされた">ロックされた</option>
+              <option value="社員情報の登録・変更">社員情報の登録・変更</option>
+              <option value="その他">その他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>内容<span id="contact-content-required">（必須）</span></label>
+            <textarea id="contact-content" maxlength="2000"></textarea>
+          </div>
+          <button type="submit" class="btn-primary" id="contact-submit-btn">送信する</button>
+        </form>
+      </div>
+      <div id="contact-done-area" style="display:none;">
+        <p class="contact-done">送信しました。システム管理者から連絡します。</p>
+      </div>
+      <span class="logout-link" onclick="closeContactView()">戻る</span>
     </div>
   </div>
 
@@ -262,13 +325,16 @@
 
   // ログインセッションID（共通基盤側で6時間有効）。ページを再読み込みすると破棄され、再ログインが必要
   let sessionId = null;
+  // ログイン中の社員（連絡フォームの自動入力用）
+  let loggedInEmail = '';
+  let loggedInName = '';
 
   // 遷移先への移動がブラウザにブロックされた場合に、手動で開くリンクを出すまでの待ち時間
   const NAV_FALLBACK_DELAY_MS = 3000;
   let navFallbackTimer = null;
 
   function showView(viewId) {
-    ['login-view', 'change-view', 'menu-view'].forEach(id => {
+    ['login-view', 'change-view', 'menu-view', 'contact-view'].forEach(id => {
       document.getElementById(id).style.display = (id === viewId) ? 'block' : 'none';
     });
   }
@@ -362,6 +428,8 @@
    */
   function completeLogin(res) {
     sessionId = res.sessionId;
+    loggedInEmail = res.email || '';
+    loggedInName = res.name || '';
     document.getElementById('login-password').value = '';
     document.getElementById('menu-name').textContent = res.name + ' さん';
     document.getElementById('menu-org').textContent =
@@ -448,10 +516,69 @@
       google.script.run.logoutSession(sessionId);
       sessionId = null;
     }
+    loggedInEmail = '';
+    loggedInName = '';
     document.getElementById('login-password').value = '';
     document.getElementById('change-form').reset();
     document.getElementById('login-error').style.display = 'none';
     showView('login-view');
+  }
+
+  /**
+   * システム管理者に連絡：ログイン後はメールアドレス・氏名を自動入力して変更不可にする
+   */
+  // 「社員情報の登録・変更」「その他」は内容を必須にする
+  const CONTACT_CONTENT_REQUIRED = ['社員情報の登録・変更', 'その他'];
+
+  function showContactView() {
+    resetMenuMessages();
+    document.getElementById('contact-form').reset();
+    document.getElementById('contact-error').style.display = 'none';
+    document.getElementById('contact-form-area').style.display = 'block';
+    document.getElementById('contact-done-area').style.display = 'none';
+    const emailInput = document.getElementById('contact-email');
+    const loggedIn = !!sessionId;
+    emailInput.value = loggedIn ? loggedInEmail : document.getElementById('login-email').value;
+    emailInput.readOnly = loggedIn;
+    document.getElementById('contact-name').value = loggedIn ? loggedInName : '';
+    document.getElementById('contact-name-group').style.display = loggedIn ? 'block' : 'none';
+    updateContactContentRequired();
+    showView('contact-view');
+  }
+
+  function closeContactView() {
+    showView(sessionId ? 'menu-view' : 'login-view');
+  }
+
+  function updateContactContentRequired() {
+    const required = CONTACT_CONTENT_REQUIRED.indexOf(document.getElementById('contact-category').value) !== -1;
+    document.getElementById('contact-content').required = required;
+    document.getElementById('contact-content-required').textContent = required ? '（必須）' : '（任意）';
+  }
+
+  function handleContactSubmit(e) {
+    e.preventDefault();
+    const errorBox = document.getElementById('contact-error');
+    errorBox.style.display = 'none';
+    const btn = document.getElementById('contact-submit-btn');
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(() => {
+        btn.disabled = false;
+        // 登録の有無にかかわらず、表示は常に同じ
+        document.getElementById('contact-form-area').style.display = 'none';
+        document.getElementById('contact-done-area').style.display = 'block';
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      })
+      .submitInquiry(
+        document.getElementById('contact-email').value,
+        document.getElementById('contact-category').value,
+        document.getElementById('contact-content').value
+      );
   }
 </script>
 
