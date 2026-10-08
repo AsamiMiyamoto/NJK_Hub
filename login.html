@@ -225,6 +225,18 @@
     .guide th, .guide td { border: 1px solid var(--table-border); padding: 6px 8px; text-align: left; vertical-align: top; }
     .guide th { background-color: var(--table-head-bg); color: var(--table-head-color); }
     .guide-close { margin-top: 0; text-align: right; }
+
+    /* NJKガイドの図（NJKのつながり）。狭い画面では文字が小さくなりすぎないよう、横スクロールにする */
+    .njk-diagram { margin: 12px 0; }
+    .njk-diagram svg { display: block; width: 100%; min-width: 520px; height: auto; }
+    .njk-diagram figcaption { font-size: 12px; color: var(--text-muted); text-align: center; }
+    .njk-box { fill: var(--card-bg); stroke: var(--border-color); stroke-width: 1.5; }
+    .njk-box-main { fill: var(--soft-bg); stroke: var(--primary-color); }
+    .njk-name { fill: var(--text-color); font-size: 18px; font-weight: bold; }
+    .njk-sub { fill: var(--text-muted); font-size: 13px; }
+    .njk-line { stroke: var(--primary-color); stroke-width: 2; }
+    .njk-arrowhead { fill: var(--primary-color); }
+    .njk-label { fill: var(--primary-color); font-size: 13px; }
     .notice a { color: var(--link-color); font-weight: bold; }
   </style>
 </head>
@@ -294,6 +306,7 @@
       </div>
       <button type="button" class="btn-dest" id="portal-btn" onclick="goToSystem('jinji', this)" disabled>ポータル（準備中）</button>
       <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理</button>
+      <button type="button" class="btn-dest" onclick="showGuide('guide-njk-view')">NJKガイド</button>
       <button type="button" class="btn-dest" onclick="showContactView()">システム管理者に連絡</button>
       <span class="logout-link" onclick="backToLogin()">ログアウト</span>
     </div>
@@ -335,6 +348,99 @@
       <tr><td>退職済みのアカウントです</td><td>「システム管理者に連絡」から連絡してください</td></tr>
       </tbody></table></div>
       <p>画面が切り替わらないときは、3秒ほど待つと「開く」が出るので、それを押してください。</p>
+      <span class="logout-link" onclick="closeGuide()">戻る</span>
+    </div>
+
+    <!-- ガイド：NJKガイド・用語集（メニューから開く。ログイン後のみ） -->
+    <div id="guide-njk-view" class="guide" style="display:none;">
+      <span class="logout-link guide-close" onclick="closeGuide()">戻る</span>
+      <h2 class="help-h1">NJKガイド・用語集</h2>
+      <nav class="guide-toc" id="guide-njk-toc"><p class="guide-toc-title">目次</p><ol>
+      <li><a href="#guide-njk-1" class="help-link" data-target="guide-njk-1">NJKとは</a></li>
+      <li><a href="#guide-njk-2" class="help-link" data-target="guide-njk-2">3つのシステム</a></li>
+      <li><a href="#guide-njk-3" class="help-link" data-target="guide-njk-3">使うときの流れ</a></li>
+      <li><a href="#guide-njk-4" class="help-link" data-target="guide-njk-4">社員情報の登録・変更</a></li>
+      <li><a href="#guide-njk-5" class="help-link" data-target="guide-njk-5">困ったとき</a></li>
+      <li><a href="#guide-njk-6" class="help-link" data-target="guide-njk-6">用語集</a></li>
+      </ol></nav>
+      <h3 class="help-h2" id="guide-njk-1">NJKとは</h3>
+      <p class="guide-back"><a href="#guide-njk-toc" class="help-link" data-target="guide-njk-toc">目次へ戻る</a></p>
+      <p>NJK（Next Journey Keynote）は、協会の社内システムをまとめた呼び名です。ログインは1回だけで、共通基盤にログインすれば、そこから各システムへ移動できます。</p>
+      <h3 class="help-h2" id="guide-njk-2">3つのシステム</h3>
+      <p class="guide-back"><a href="#guide-njk-toc" class="help-link" data-target="guide-njk-toc">目次へ戻る</a></p>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>システム</th><th>役割</th></tr></thead><tbody>
+      <tr><td>共通基盤</td><td>ログインの入口。社員や組織の情報をまとめて管理する</td></tr>
+      <tr><td>AP・タスク管理</td><td>事業部の戦略と、それを進めるための行動計画（AP）の進み具合を管理する</td></tr>
+      <tr><td>ポータル</td><td>自分のチャレンジ（目標）を立てて、自己評価をする。上司は評価をする（現在は準備中）</td></tr>
+      </tbody></table></div>
+      <p>社員の名前や所属は共通基盤にだけ登録します。ほかのシステムは、共通基盤の情報を自動で受け取って使います。</p>
+      <figure class="njk-diagram">
+      <div class="table-scroll">
+      <svg viewBox="0 0 640 250" role="img" aria-labelledby="njk-diagram-title">
+      <title id="njk-diagram-title">NJKのつながり：共通基盤から、AP・タスク管理とポータルへ移動し、情報を連携する</title>
+      <defs>
+      <marker id="njk-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" class="njk-arrowhead"/>
+      </marker>
+      </defs>
+      <rect class="njk-box njk-box-main" x="16" y="85" width="190" height="80" rx="10"/>
+      <text class="njk-name" x="111" y="120" text-anchor="middle">共通基盤</text>
+      <text class="njk-sub" x="111" y="146" text-anchor="middle">ログイン・社員と組織の情報</text>
+      <rect class="njk-box" x="434" y="15" width="190" height="80" rx="10"/>
+      <text class="njk-name" x="529" y="50" text-anchor="middle">AP・タスク管理</text>
+      <text class="njk-sub" x="529" y="76" text-anchor="middle">戦略と行動計画（AP）</text>
+      <rect class="njk-box" x="434" y="155" width="190" height="80" rx="10"/>
+      <text class="njk-name" x="529" y="190" text-anchor="middle">ポータル</text>
+      <text class="njk-sub" x="529" y="216" text-anchor="middle">チャレンジ・評価（準備中）</text>
+      <line class="njk-line" x1="206" y1="110" x2="428" y2="58" marker-end="url(#njk-arrow)"/>
+      <line class="njk-line" x1="206" y1="140" x2="428" y2="192" marker-end="url(#njk-arrow)"/>
+      <text class="njk-label" x="318" y="68" text-anchor="middle">移動・情報を連携</text>
+      <text class="njk-label" x="318" y="194" text-anchor="middle">移動・情報を連携</text>
+      </svg>
+      </div>
+      <figcaption>NJKのつながり（3つのシステム）</figcaption>
+      </figure>
+      <h3 class="help-h2" id="guide-njk-3">使うときの流れ</h3>
+      <p class="guide-back"><a href="#guide-njk-toc" class="help-link" data-target="guide-njk-toc">目次へ戻る</a></p>
+      <ol>
+      <li>共通基盤のログイン画面を開いて、ログインします。</li>
+      <li>メニューから、使いたいシステムのボタンを押します。</li>
+      <li>使い終わったら、メニューの「ログアウト」を押します。</li>
+      </ol>
+      <h3 class="help-h2" id="guide-njk-4">社員情報の登録・変更</h3>
+      <p class="guide-back"><a href="#guide-njk-toc" class="help-link" data-target="guide-njk-toc">目次へ戻る</a></p>
+      <p>社員の新規登録や、氏名・メールアドレス・所属などの変更は、システム管理者が行います。変更が必要なときは、メニューの「システム管理者に連絡」から、用件「社員情報の登録・変更」を選んで依頼してください。</p>
+      <ul>
+      <li>新しい社員が入るとき：氏名、メールアドレス、所属、利用開始日を伝えてください。</li>
+      <li>異動・兼務のとき：対象の社員、新しい所属、異動日（兼務の場合は開始日）を伝えてください。</li>
+      <li>退職・休職のとき：対象の社員と、その日付を伝えてください。</li>
+      </ul>
+      <h3 class="help-h2" id="guide-njk-5">困ったとき</h3>
+      <p class="guide-back"><a href="#guide-njk-toc" class="help-link" data-target="guide-njk-toc">目次へ戻る</a></p>
+      <ul>
+      <li>ログインについては「<a href="#" class="help-link" data-guide="guide-login-view">ログインのしかた</a>」を見てください。</li>
+      <li>各システムの操作は、それぞれのシステムのヘルプを見てください。</li>
+      <li>それでも分からないときは、ログイン画面またはメニューの「システム管理者に連絡」から連絡してください。</li>
+      </ul>
+      <h3 class="help-h2" id="guide-njk-6">用語集</h3>
+      <p class="guide-back"><a href="#guide-njk-toc" class="help-link" data-target="guide-njk-toc">目次へ戻る</a></p>
+      <div class="table-scroll"><table class="help-table"><thead><tr><th>言葉</th><th>意味</th></tr></thead><tbody>
+      <tr><td>NJK</td><td>協会の社内システムをまとめた呼び名</td></tr>
+      <tr><td>共通基盤</td><td>ログインの入口で、社員・組織の情報を管理するシステム</td></tr>
+      <tr><td>AP・タスク管理</td><td>戦略と行動計画（AP）を管理するシステム。「戦略AP」とも呼ぶ</td></tr>
+      <tr><td>ポータル</td><td>チャレンジ管理と評価のシステム（人事評価）</td></tr>
+      <tr><td>AP</td><td>アクションプラン。戦略を進めるための具体的な行動計画</td></tr>
+      <tr><td>社員ID</td><td>社員ひとりひとりの番号（例：E0001）。自動で付く</td></tr>
+      <tr><td>事業部</td><td>協会の大きな組織の単位（例：JIM、REN、SHE）</td></tr>
+      <tr><td>部署</td><td>事業部の中の小さな組織の単位。部署がない事業部もある</td></tr>
+      <tr><td>主所属</td><td>その社員のメインの所属先</td></tr>
+      <tr><td>兼務</td><td>メインの所属先とは別に、ほかの事業部や部署も担当すること</td></tr>
+      <tr><td>在籍状況</td><td>在籍・休職・退職のどれか</td></tr>
+      <tr><td>有効／無効</td><td>ログインできるかどうか。無効にするとログインできない</td></tr>
+      <tr><td>仮パスワード</td><td>管理者が発行する一時的なパスワード。最初のログインで自分のパスワードに変える</td></tr>
+      <tr><td>ロック</td><td>パスワードを5回続けて間違えたときに、15分間ログインできなくなること</td></tr>
+      <tr><td>システム管理者</td><td>共通基盤の管理画面で、社員や組織の情報を管理する人</td></tr>
+      </tbody></table></div>
       <span class="logout-link" onclick="closeGuide()">戻る</span>
     </div>
 
@@ -391,8 +497,8 @@
   const NAV_FALLBACK_DELAY_MS = 3000;
   let navFallbackTimer = null;
 
-  const ALL_VIEWS = ['login-view', 'change-view', 'menu-view', 'contact-view', 'guide-login-view'];
-  const GUIDE_VIEWS = ['guide-login-view'];
+  const ALL_VIEWS = ['login-view', 'change-view', 'menu-view', 'contact-view', 'guide-login-view', 'guide-njk-view'];
+  const GUIDE_VIEWS = ['guide-login-view', 'guide-njk-view'];
 
   function showView(viewId) {
     ALL_VIEWS.forEach(id => {
