@@ -278,38 +278,42 @@
 
   <div id="load-error" class="warning-box" style="display:none; white-space:pre-line;"></div>
 
-  <!-- 要対応パネル（管理画面を開いたとき最上部に表示） -->
-  <section class="action-panel" id="action-panel">
-    <h3 class="action-panel-title">要対応</h3>
-    <div id="action-notify-warning" class="warning-box" style="display:none; margin-bottom:8px;">通知を受け取れる管理者がいません。問い合わせのメール通知は送られません。「管理者設定」タブで、管理者に在籍中の社員を紐付けてください。</div>
-    <div class="action-group">
-      <div class="action-group-head">
-        <h4>未対応の問い合わせ</h4>
-        <label class="action-toggle"><input type="checkbox" id="show-resolved-inquiries" onchange="renderActionItems()"> 対応済みも表示</label>
-      </div>
-      <div id="action-inquiries"><p class="action-empty">読み込んでいます…</p></div>
-    </div>
-    <div class="action-group">
-      <h4>仮パスワードのままの社員</h4>
-      <div id="action-temp-pw"><p class="action-empty">読み込んでいます…</p></div>
-    </div>
-    <div class="action-group">
-      <h4>無効な事業部・部署に所属したままの社員</h4>
-      <div id="action-inactive-org"><p class="action-empty">読み込んでいます…</p></div>
-    </div>
-  </section>
 
   <!-- タブナビゲーション -->
   <ul class="nav-tabs">
-    <li class="nav-tab active" data-tab="employee-tab" onclick="switchTab('employee-tab', this)">社員マスタ</li>
+    <li class="nav-tab active" data-tab="home-tab" onclick="switchTab('home-tab', this)">ホーム<span id="home-tab-count"></span></li>
+    <li class="nav-tab" data-tab="employee-tab" onclick="switchTab('employee-tab', this)">社員マスタ</li>
     <li class="nav-tab" data-tab="department-tab" onclick="switchTab('department-tab', this)">事業部マスタ</li>
     <li class="nav-tab" data-tab="section-tab" onclick="switchTab('section-tab', this)">部署マスタ</li>
     <li class="nav-tab" data-tab="admin-tab" onclick="switchTab('admin-tab', this)">管理者設定</li>
     <li class="nav-tab" data-tab="help-tab" onclick="switchTab('help-tab', this)">ヘルプ</li>
   </ul>
 
+  <!-- 0. ホーム（管理画面を開いたときに表示。要対応パネル） -->
+  <div id="home-tab" class="tab-content active">
+    <section class="action-panel" id="action-panel">
+      <h3 class="action-panel-title">要対応</h3>
+      <div id="action-notify-warning" class="warning-box" style="display:none; margin-bottom:8px;">通知を受け取れる管理者がいません。問い合わせのメール通知は送られません。「管理者設定」タブで、管理者に在籍中の社員を紐付けてください。</div>
+      <div class="action-group">
+        <div class="action-group-head">
+          <h4>未対応の問い合わせ</h4>
+          <label class="action-toggle"><input type="checkbox" id="show-resolved-inquiries" onchange="renderActionItems()"> 対応済みも表示</label>
+        </div>
+        <div id="action-inquiries"><p class="action-empty">読み込んでいます…</p></div>
+      </div>
+      <div class="action-group">
+        <h4>仮パスワードのままの社員</h4>
+        <div id="action-temp-pw"><p class="action-empty">読み込んでいます…</p></div>
+      </div>
+      <div class="action-group">
+        <h4>無効な事業部・部署に所属したままの社員</h4>
+        <div id="action-inactive-org"><p class="action-empty">読み込んでいます…</p></div>
+      </div>
+    </section>
+  </div>
+
   <!-- 1. 社員マスタ -->
-  <div id="employee-tab" class="tab-content active">
+  <div id="employee-tab" class="tab-content">
     <div class="action-bar">
       <h3>社員一覧</h3>
       <div>
@@ -446,6 +450,17 @@
       <tr><td>AP・タスク管理</td><td>戦略APへ移動</td></tr>
       <tr><td>ログアウト</td><td>ログイン画面に戻る</td></tr>
       </tbody></table>
+      <h4 class="help-h3" id="help-home">管理画面：ホーム（要対応）</h4>
+      <p>管理画面を開くと「<a href="#" class="help-link" data-tab="home-tab">ホーム</a>」タブが表示されます。ホームには、管理者が対応する必要のあるものが「要対応」としてまとめて表示されます。タブ名の数字は、その合計件数です（0件のときは表示されません）。</p>
+      <table class="help-table"><thead><tr><th>一覧</th><th>内容</th></tr></thead><tbody>
+      <tr><td>未対応の問い合わせ</td><td>ログイン画面・メニューの「システム管理者に連絡」から届いたもの。対応したら「対応済みにする」でメモを残す。「対応済みも表示」で過去の分も見られる</td></tr>
+      <tr><td>仮パスワードのままの社員</td><td>初回ログインやPWリセット後に、まだパスワードを変更していない社員</td></tr>
+      <tr><td>無効な事業部・部署に所属したままの社員</td><td>無効にした事業部・部署に、主所属や兼務が残っている社員</td></tr>
+      </tbody></table>
+      <ul>
+      <li>「編集」を押すと、「<a href="#" class="help-link" data-tab="employee-tab">社員マスタ</a>」タブに切り替わり、その社員の編集画面が開きます。</li>
+      <li>通知を受け取れる管理者が1人もいないときは、ホームの最上部に注意が表示されます。「<a href="#" class="help-link" data-tab="admin-tab">管理者設定</a>」タブで、管理者に社員を紐付けてください。</li>
+      </ul>
       <h4 class="help-h3" id="help-sec-7">管理画面：社員マスタ</h4>
       <p>一覧には社員ID・氏名・メールアドレス・事業部・部署・在籍状況・利用開始日・有効フラグが並びます。退職者は「退職者も表示」にチェックを入れると表示されます。</p>
       <p><strong>新規社員登録</strong></p>
@@ -996,6 +1011,11 @@
 
   function renderActionItems() {
     if (!cachedActionItems) return;
+    // ホームのタブ名に要対応の合計件数（未対応の問い合わせ＋仮パスワード＋無効な所属）を出す。0件なら出さない
+    const openCount = cachedActionItems.inquiries.filter(q => q.status !== '対応済み').length
+      + cachedActionItems.tempPasswordEmployees.length
+      + cachedActionItems.inactiveOrgEmployees.length;
+    document.getElementById('home-tab-count').textContent = openCount > 0 ? '（' + openCount + '）' : '';
     document.getElementById('action-notify-warning').style.display =
       cachedActionItems.notifiableAdminCount === 0 ? 'block' : 'none';
     const showResolved = document.getElementById('show-resolved-inquiries').checked;
@@ -1077,6 +1097,7 @@
       alert('社員一覧を読み込み中です。少し待ってから、もう一度押してください。');
       return;
     }
+    switchTab('employee-tab', document.querySelector('.nav-tab[data-tab="employee-tab"]'));
     openEmployeeEditModal(empId);
   }
 
