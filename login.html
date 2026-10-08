@@ -125,6 +125,22 @@
     .btn-dest:hover { background-color: var(--soft-bg); border-color: var(--primary-color); }
     .btn-dest:disabled { color: var(--text-disabled); cursor: not-allowed; background-color: var(--readonly-bg); }
 
+    /* 副ボタン（ログイン方法・NJKガイド）：主ボタンより目立たない見た目 */
+    .btn-sub {
+      display: block;
+      width: 100%;
+      background-color: var(--card-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      padding: 8px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .btn-sub:hover { background-color: var(--soft-bg); color: var(--text-color); }
+
     .error-message {
       color: var(--danger-color);
       font-size: 13px;
@@ -209,7 +225,7 @@
     .form-group textarea { min-height: 120px; resize: vertical; }
     .contact-done { text-align: center; font-size: 14px; margin: 8px 0 4px; }
 
-    /* ガイド（ログインのしかた・NJKガイド）。表示中はカードの横幅を広げ、表は横スクロールできるようにする */
+    /* ガイド（ログイン方法・NJKガイド）。表示中はカードの横幅を広げ、表は横スクロールできるようにする */
     .card.card-wide { width: calc(100% - 32px); max-width: 720px; box-sizing: border-box; }
     .guide { font-size: 14px; line-height: 1.7; }
     .guide h2.help-h1 { font-size: 18px; color: var(--header-color); text-align: left; margin: 0 0 8px; }
@@ -259,9 +275,9 @@
           <input type="password" id="login-password" required autocomplete="current-password">
         </div>
         <button type="submit" class="btn-primary" id="login-submit-btn">ログイン</button>
+        <button type="button" class="btn-sub" onclick="showGuide('guide-login-view')">ログイン方法</button>
         <div class="forgot-note">パスワードがわからない場合は、管理者にリセットを依頼してください</div>
       </form>
-      <span class="logout-link" onclick="showGuide('guide-login-view')">ログインのしかた</span>
       <span class="logout-link" onclick="showChangeView(false)">パスワードを変更する</span>
       <span class="logout-link" onclick="showContactView()">システム管理者に連絡</span>
     </div>
@@ -306,15 +322,15 @@
       </div>
       <button type="button" class="btn-dest" id="portal-btn" onclick="goToSystem('jinji', this)" disabled>ポータル（準備中）</button>
       <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理</button>
-      <button type="button" class="btn-dest" onclick="showGuide('guide-njk-view')">NJKガイド</button>
-      <button type="button" class="btn-dest" onclick="showContactView()">システム管理者に連絡</button>
+      <button type="button" class="btn-sub" onclick="showGuide('guide-njk-view')">NJKガイド</button>
       <span class="logout-link" onclick="backToLogin()">ログアウト</span>
+      <span class="logout-link" onclick="showContactView()">システム管理者に連絡</span>
     </div>
 
-    <!-- ガイド：ログインのしかた -->
+    <!-- ガイド：ログイン方法 -->
     <div id="guide-login-view" class="guide" style="display:none;">
       <span class="logout-link guide-close" onclick="closeGuide()">戻る</span>
-      <h2 class="help-h1">ログインのしかた</h2>
+      <h2 class="help-h1">ログイン方法</h2>
       <nav class="guide-toc" id="guide-login-toc"><p class="guide-toc-title">目次</p><ol>
       <li><a href="#guide-login-1" class="help-link" data-target="guide-login-1">はじめてログインするとき</a></li>
       <li><a href="#guide-login-2" class="help-link" data-target="guide-login-2">パスワードを忘れたとき</a></li>
@@ -322,7 +338,6 @@
       <li><a href="#guide-login-4" class="help-link" data-target="guide-login-4">ログインできないとき</a></li>
       </ol></nav>
       <h3 class="help-h2" id="guide-login-1">はじめてログインするとき</h3>
-      <p class="guide-back"><a href="#guide-login-toc" class="help-link" data-target="guide-login-toc">目次へ戻る</a></p>
       <ol>
       <li>会社から伝えられたメールアドレスと仮パスワードを入れて、「ログイン」を押します。</li>
       <li>パスワード変更の画面に変わります。自分で決めた新しいパスワードを2回入れます。</li>
@@ -335,13 +350,10 @@
       <li>仮パスワードと同じものは使えません。</li>
       </ul>
       <h3 class="help-h2" id="guide-login-2">パスワードを忘れたとき</h3>
-      <p class="guide-back"><a href="#guide-login-toc" class="help-link" data-target="guide-login-toc">目次へ戻る</a></p>
       <p>自分では元に戻せません。ログイン画面の「システム管理者に連絡」から、用件「パスワードを忘れた」を選んで連絡してください。本人確認のあと、システム管理者から新しい仮パスワードが伝えられます。受け取ったら「<a href="#guide-login-1" class="help-link" data-target="guide-login-1">はじめてログインするとき</a>」と同じ手順で進みます。</p>
       <h3 class="help-h2" id="guide-login-3">「試行回数が上限に達しました」と出たとき</h3>
-      <p class="guide-back"><a href="#guide-login-toc" class="help-link" data-target="guide-login-toc">目次へ戻る</a></p>
       <p>5回続けてパスワードを間違えたので、15分間ログインできなくなっています。15分待ってから、もう一度試してください。パスワードを忘れた場合は、ログイン画面の「システム管理者に連絡」から連絡してください。</p>
       <h3 class="help-h2" id="guide-login-4">ログインできないとき</h3>
-      <p class="guide-back"><a href="#guide-login-toc" class="help-link" data-target="guide-login-toc">目次へ戻る</a></p>
       <div class="table-scroll"><table class="help-table"><thead><tr><th>出たメッセージ</th><th>どうするか</th></tr></thead><tbody>
       <tr><td>メールアドレスまたはパスワードが間違っています</td><td>入力ミスがないか確認してください。大文字・小文字は区別されません</td></tr>
       <tr><td>無効化されているアカウントです</td><td>「システム管理者に連絡」から連絡してください</td></tr>
@@ -418,7 +430,7 @@
       <h3 class="help-h2" id="guide-njk-5">困ったとき</h3>
       <p class="guide-back"><a href="#guide-njk-toc" class="help-link" data-target="guide-njk-toc">目次へ戻る</a></p>
       <ul>
-      <li>ログインについては「<a href="#" class="help-link" data-guide="guide-login-view">ログインのしかた</a>」を見てください。</li>
+      <li>ログインについては「<a href="#" class="help-link" data-guide="guide-login-view">ログイン方法</a>」を見てください。</li>
       <li>各システムの操作は、それぞれのシステムのヘルプを見てください。</li>
       <li>それでも分からないときは、ログイン画面またはメニューの「システム管理者に連絡」から連絡してください。</li>
       </ul>
