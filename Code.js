@@ -1298,13 +1298,53 @@ function assertApiKey_(apiKey, apiName) {
  * @return {{valid: boolean}}
  */
 function checkEmployeeSession(apiKey, empId, sessionCreatedAtMs) {
-  assertApiKey_(apiKey, 'checkEmployeeSession');
-  const createdAt = Number(sessionCreatedAtMs);
-  if (!empId || !isFinite(createdAt) || createdAt <= 0) return { valid: false };
+  const startedAt = Date.now();
+  let employeeReadMs = 0;
+  let employeeReadExecuted = false;
+  try {
+    assertApiKey_(apiKey, 'checkEmployeeSession');
+    const createdAt = Number(sessionCreatedAtMs);
+    if (!empId || !isFinite(createdAt) || createdAt <= 0) return { valid: false };
 
-  const emp = getEmployeeRecords_().find(e => e.empId === empId);
-  if (!isActiveEmployee_(emp) || createdAt < emp.pwChangedAt) return { valid: false };
-  return { valid: true };
+    const readStartedAt = Date.now();
+    let emp;
+    employeeReadExecuted = true;
+    try {
+      emp = getEmployeeSessionState_(empId);
+    } finally {
+      employeeReadMs = Date.now() - readStartedAt;
+    }
+    if (!isActiveEmployee_(emp) || createdAt < emp.pwChangedAt) return { valid: false };
+    return { valid: true };
+  } finally {
+    try {
+      console.log('[SESSION_CHECK_TRACE] ' + JSON.stringify({
+        employeeReadMs: employeeReadMs,
+        employeeReadExecuted: employeeReadExecuted,
+        totalMs: Date.now() - startedAt
+      }));
+    } catch (ignored) {
+      // 計測ログの失敗で認証結果を変えない。
+    }
+  }
+}
+
+/** セッション確認専用。社員マスタのみ読み、既存の値変換・先頭一致を維持する。 */
+function getEmployeeSessionState_(empId) {
+  const sheet = getCommonSpreadsheet().getSheetByName('社員マスタ');
+  if (!sheet) return null;
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if ((row[0] || '') !== empId) continue;
+    return {
+      empId: row[0] || '',
+      status: row[3] || '',
+      isValid: row[6] === false ? '無効' : '有効',
+      pwChangedAt: row[9] instanceof Date ? row[9].getTime() : 0
+    };
+  }
+  return null;
 }
 
 /**
