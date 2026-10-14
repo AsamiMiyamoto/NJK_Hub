@@ -53,8 +53,9 @@
     }
 
     .card {
-      width: 100%;
-      max-width: 380px;
+      box-sizing: border-box;
+      width: calc(100% - 32px);
+      max-width: 444px;
       background: var(--card-bg);
       border-radius: 8px;
       box-shadow: 0 1px 3px var(--shadow-color);
@@ -122,10 +123,13 @@
       margin-bottom: 10px;
     }
 
+    /* 長いボタン名は区切りの位置で折り返す（狭い画面で単語の途中で折り返さないように） */
+    .btn-dest .nowrap { display: inline-block; }
+
     .btn-dest:hover { background-color: var(--soft-bg); border-color: var(--primary-color); }
     .btn-dest:disabled { color: var(--text-disabled); cursor: not-allowed; background-color: var(--readonly-bg); }
 
-    /* 副ボタン（ログイン方法・NJKガイド）：主ボタンより目立たない見た目 */
+    /* 副ボタン（ログイン方法）：主ボタンより目立たない見た目 */
     .btn-sub {
       display: block;
       width: 100%;
@@ -140,6 +144,18 @@
     }
 
     .btn-sub:hover { background-color: var(--soft-bg); color: var(--text-color); }
+
+    /* メニューの NJKガイド：分岐ボタンより控えめな、中央寄せのテキストリンク */
+    .menu-guide-link {
+      display: block;
+      text-align: center;
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--link-color);
+      text-decoration: none;
+    }
+
+    .menu-guide-link:hover { text-decoration: underline; }
 
     .error-message {
       color: var(--danger-color);
@@ -249,6 +265,7 @@
     .njk-box { fill: var(--card-bg); stroke: var(--border-color); stroke-width: 1.5; }
     .njk-box-main { fill: var(--soft-bg); stroke: var(--primary-color); }
     .njk-name { fill: var(--text-color); font-size: 18px; font-weight: bold; }
+    .njk-name-long { font-size: 15px; }
     .njk-sub { fill: var(--text-muted); font-size: 13px; }
     .njk-line { stroke: var(--primary-color); stroke-width: 2; }
     .njk-arrowhead { fill: var(--primary-color); }
@@ -321,8 +338,8 @@
         <a id="menu-fallback-link" href="#" target="_top">開く</a>
       </div>
       <button type="button" class="btn-dest" id="portal-btn" onclick="goToSystem('jinji', this)" disabled>ポータル（準備中）</button>
-      <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)">AP・タスク管理</button>
-      <button type="button" class="btn-sub" onclick="showGuide('guide-njk-view')">NJKガイド</button>
+      <button type="button" class="btn-dest" onclick="goToSystem('strategy', this)"><span class="nowrap">戦略アクションプラン・</span><span class="nowrap">タスク管理</span></button>
+      <a href="#" class="menu-guide-link" onclick="showGuide('guide-njk-view'); return false;">📘 NJKガイド（使い方・用語集）</a>
       <span class="logout-link" onclick="backToLogin()">ログアウト</span>
       <span class="logout-link" onclick="showContactView()">システム管理者に連絡</span>
     </div>
@@ -382,14 +399,14 @@
       <p class="guide-back"><a href="#guide-njk-toc" class="help-link" data-target="guide-njk-toc">目次へ戻る</a></p>
       <div class="table-scroll"><table class="help-table"><thead><tr><th>システム</th><th>役割</th></tr></thead><tbody>
       <tr><td>共通基盤</td><td>ログインの入口。社員や組織の情報をまとめて管理する</td></tr>
-      <tr><td>AP・タスク管理</td><td>事業部の戦略と、それを進めるための行動計画（AP）の進み具合を管理する</td></tr>
+      <tr><td>戦略アクションプラン・タスク管理</td><td>事業部の戦略と、それを進めるための行動計画（AP）の進み具合を管理する</td></tr>
       <tr><td>ポータル</td><td>自分のチャレンジ（目標）を立てて、自己評価をする。上司は評価をする（現在は準備中）</td></tr>
       </tbody></table></div>
       <p>社員の名前や所属は共通基盤にだけ登録します。ほかのシステムは、共通基盤の情報を自動で受け取って使います。</p>
       <figure class="njk-diagram">
       <div class="table-scroll">
       <svg viewBox="0 0 640 250" role="img" aria-labelledby="njk-diagram-title">
-      <title id="njk-diagram-title">NJKのつながり：共通基盤から、AP・タスク管理とポータルへ移動し、情報を連携する</title>
+      <title id="njk-diagram-title">NJKのつながり：共通基盤から、戦略アクションプラン・タスク管理とポータルへ移動し、情報を連携する</title>
       <defs>
       <marker id="njk-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
       <path d="M0,0 L10,5 L0,10 z" class="njk-arrowhead"/>
@@ -398,9 +415,10 @@
       <rect class="njk-box njk-box-main" x="16" y="85" width="190" height="80" rx="10"/>
       <text class="njk-name" x="111" y="120" text-anchor="middle">共通基盤</text>
       <text class="njk-sub" x="111" y="146" text-anchor="middle">ログイン・社員と組織の情報</text>
-      <rect class="njk-box" x="434" y="15" width="190" height="80" rx="10"/>
-      <text class="njk-name" x="529" y="50" text-anchor="middle">AP・タスク管理</text>
-      <text class="njk-sub" x="529" y="76" text-anchor="middle">戦略と行動計画（AP）</text>
+      <rect class="njk-box" x="434" y="5" width="190" height="100" rx="10"/>
+      <text class="njk-name njk-name-long" x="529" y="36" text-anchor="middle">戦略アクションプラン・</text>
+      <text class="njk-name njk-name-long" x="529" y="58" text-anchor="middle">タスク管理</text>
+      <text class="njk-sub" x="529" y="86" text-anchor="middle">戦略と行動計画（AP）</text>
       <rect class="njk-box" x="434" y="155" width="190" height="80" rx="10"/>
       <text class="njk-name" x="529" y="190" text-anchor="middle">ポータル</text>
       <text class="njk-sub" x="529" y="216" text-anchor="middle">チャレンジ・評価（準備中）</text>
@@ -439,7 +457,7 @@
       <div class="table-scroll"><table class="help-table"><thead><tr><th>言葉</th><th>意味</th></tr></thead><tbody>
       <tr><td>NJK</td><td>協会の社内システムをまとめた呼び名</td></tr>
       <tr><td>共通基盤</td><td>ログインの入口で、社員・組織の情報を管理するシステム</td></tr>
-      <tr><td>AP・タスク管理</td><td>戦略と行動計画（AP）を管理するシステム。「戦略AP」とも呼ぶ</td></tr>
+      <tr><td>戦略アクションプラン・タスク管理</td><td>戦略と行動計画（AP）を管理するシステム。「戦略AP」とも呼ぶ</td></tr>
       <tr><td>ポータル</td><td>チャレンジ管理と評価のシステム（人事評価）</td></tr>
       <tr><td>AP</td><td>アクションプラン。戦略を進めるための具体的な行動計画</td></tr>
       <tr><td>社員ID</td><td>社員ひとりひとりの番号（例：E0001）。自動で付く</td></tr>
